@@ -6,7 +6,7 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
 set (CMAKE_CXX_STANDARD 11)
 
-add_executable(rt main.cpp Bitmap.cpp my_math.h)
+add_executable(rt main.cpp Bitmap.cpp my_math.h Primitives.cpp Primitives.h)
 
 target_link_libraries(rt ${ALL_LIBS} )
 
