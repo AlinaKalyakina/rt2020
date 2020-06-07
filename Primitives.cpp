@@ -55,8 +55,8 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
 //            float x_cord = hit_point.x / (EPS * tex_w);
 //            float z_cord = hit_point.z / (EPS * tex_h);
             auto dist = hit_point.norm();
-            int x_coord = (long long)(hit_point.x / EPS*dist/100) % tex_w;
-            int z_coord = (long long)(hit_point.z / EPS*dist/100) % tex_h;
+            int x_coord = (long long)(hit_point.x *dist/ (EPS*200)) % tex_w;
+            int z_coord = (long long)(hit_point.z *dist/ (EPS*200)) % tex_h;
             if (x_coord < 0) {
                 x_coord += tex_w;
             }

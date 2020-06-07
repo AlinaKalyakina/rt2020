@@ -1,7 +1,7 @@
 #include <cmath>
 #include <iostream>
 #include <cstdint>
-
+#include <omp.h>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -17,11 +17,7 @@
 #define IMG_HEIGHT 512
 
 
-const uint32_t RED = 0x000000FF;
-const uint32_t GREEN = 0x0000FF00;
-const uint32_t BLUE = 0x00FF0000;
 const float ambient_light = 0.2;
-
 
 
 Ray reflect(const vec3 &I, const Hit &hit) {
@@ -112,22 +108,38 @@ vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vec
 
 std::vector<uint32_t>
 render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, const std::vector<Light> &lights) {
-    std::vector<uint32_t> image(IMG_WIDTH * IMG_HEIGHT);
-    //#pragma omp parallel for
+    std::vector<vec3> raw_image((IMG_WIDTH + 1) * (IMG_HEIGHT + 1));
 
-    for (size_t j = 0; j < IMG_HEIGHT; j++) { // actual rendering loop
-        for (size_t i = 0; i < IMG_WIDTH; i++) {
-            float dir_x = (i + 0.5f) - IMG_WIDTH / 2.;
-            float dir_y = -(j + 0.5f) + IMG_HEIGHT / 2.;    // this flips the image at the same time
-            float dir_z = -IMG_HEIGHT / (2. * tan(M_PI / 3 / 2.));
+    //shared(spheres, planes, lights, raw_image) default(none)
+    #pragma omp parallel for
+    for (size_t j = 0; j < IMG_HEIGHT + 1; j++) { // actual rendering loop
+        for (size_t i = 0; i < IMG_WIDTH + 1; i++) {
+            float dir_x = (i + 0.5f) - (IMG_WIDTH + 1)/ 2.;
+            float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;    // this flips the raw_image at the same time
+            float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
             vec3 color = cast_ray(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), spheres, planes, lights) * 255;
-            color.crop(0, 255);
             //vec3 int_color = color*255;
-            image[i + (IMG_HEIGHT - 1 - j) * IMG_WIDTH] =
-                    (((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
+            raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
+                    //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
         }
     }
-    return std::move(image);
+
+    std::vector<uint32_t> res_image(IMG_WIDTH * IMG_HEIGHT);
+    #pragma omp parallel for
+    for (size_t j = 0; j < IMG_HEIGHT; j++) { // actual rendering loop
+        for (size_t i = 0; i < IMG_WIDTH; i++) {
+            auto color = (raw_image[i + j*(IMG_WIDTH + 1)] +
+                    raw_image[i + 1 + j*(IMG_WIDTH + 1)] +
+                    raw_image[i + (j + 1)*(IMG_WIDTH + 1)] +
+                    raw_image[i + 1 + (j + 1)*(IMG_WIDTH + 1)]) * (1.0/4);
+            color.crop(0, 255);
+            res_image[i + (j*IMG_WIDTH)] = (((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
+        }
+    }
+    //#pragma omp parallel for
+
+
+    return std::move(res_image);
 }
 
 std::vector<vec3> load_tex(char const *filename, int *width, int *height) {
@@ -176,15 +188,16 @@ int main(int argc, const char **argv) {
     if (sceneId > 0) {
         return 0;
     }
-    int thread_n = 1;
-    if (cmdLineParams.find("-threads") != cmdLineParams.end())
-        thread_n = strtol(cmdLineParams["-threads"].c_str(), &end, 10);
-
+    if (cmdLineParams.find("-threads") != cmdLineParams.end()) {
+        int thread_n = strtol(cmdLineParams["-threads"].c_str(), &end, 10);
+        omp_set_dynamic(0);
+        omp_set_num_threads(thread_n);
+    }
 
     //Material ivory(1.0, vec4(0.6, 0.3, 0.1, 0.0), vec3(0.4, 0.4, 0.3), 50.);
     Material glass(1.5, vec4(0.0, 0.5, 0.25, 0.75), vec3(0.9, 0.4, 0.5), 125.);
     Material blue_rubber(1.0, vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.1, 0.3), 10.);
-    Material green_rubber(1.0, vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.3, 0.1), 10.);
+    Material grass_material(1.0, vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.3, 0.1), 10.);
     Material mirror(1.0, vec4(0.0, 10.0, 0.8, 0.0), vec3(1.0, 1.0, 1.0), 1425.);
 
     int x, y;
@@ -196,7 +209,7 @@ int main(int argc, const char **argv) {
     spheres.emplace_back(vec3(5, -1, -20), 4, mirror);
 
     std::vector<HorPlane> planes;
-    planes.emplace_back(-5, green_rubber, &grass_tex, x, y);
+    planes.emplace_back(-5, grass_material, &grass_tex, x, y);
 
     std::vector<Light> lights;
     //lights.emplace_back(vec3(-20, 20, 20), 5.5);
