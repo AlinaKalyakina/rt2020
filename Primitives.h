@@ -4,10 +4,18 @@
 
 #ifndef RT_PRIMITIVES_H
 #define RT_PRIMITIVES_H
+
+#include <vector>
 #include "my_math.h"
 
-#define EPS 1e-03
-#define MAX_DIST 1000
+#define EPS 1e-3
+#define MAX_DIST 200
+
+struct Ray {
+    vec3 dir;
+    vec3 orig;
+    Ray(const vec3 &o, const vec3 &d);
+};
 
 struct Light {
     Light(const vec3 &p, float i);
@@ -32,31 +40,35 @@ struct Hit {
     Material material;
 
     Hit();
-    Hit(vec3 hit_point, float d, vec3 norm, Material mat);
+    Hit(const vec3 &hit_point, float d, const vec3& norm, const Material &mat);
     operator bool ();
 };
 
-struct Primitive {
-    Material material;
-    explicit Primitive(const Material &m):material(m) {}
-    virtual Hit ray_intersect(const vec3 &orig, const vec3 &dir) const = 0;
-    virtual ~Primitive() = default;;
-};
+//struct Primitive {
+//    Material material;
+//    explicit Primitive(const Material &m):material(m) {}
+//    virtual Hit ray_intersect(const Ray& ray) const = 0;
+//    virtual ~Primitive() = default;;
+//};
 
-struct Sphere: Primitive {
+struct Sphere {
     vec3 center;
     float radius;
+    Material material;
 
     Sphere(const vec3 &c, float r, const Material &m);
-
-    Hit ray_intersect(const vec3 &orig, const vec3 &dir) const override;
+    Hit ray_intersect(const Ray& ray) const;
 
 };
 
-struct HorPlane: Primitive {
+struct HorPlane {
     float y = -4;
-    explicit HorPlane(float d, Material mat);
-    Hit ray_intersect(const vec3 &orig, const vec3 &dir) const override;
+    Material material;
+    const std::vector<vec3>* texture = nullptr;
+    int tex_w{}, tex_h{};
+    HorPlane(float d, Material mat);
+    HorPlane(float d, Material mat, const std::vector<vec3>* tex, int tex_width, int tex_height);
+    Hit ray_intersect(const Ray &ray) const;
 };
 
 #endif //RT_PRIMITIVES_H
