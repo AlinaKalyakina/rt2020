@@ -2,13 +2,14 @@
 
 #include <utility>
 
+
 Light::Light(const vec3 &p, const float i) : position(p), intensity(i) {}
 
-Material::Material(const float r, const vec4 &a, const vec3& color, const float spec) : refractive_index(r), albedo(a),
-                                                                                        diffuse_color(color),
-                                                                                        specular_exponent(spec) {}
+Material::Material(const vec4 &a, const vec3 &color, float spec, float r) : refractive_index(r), diff_spec_refl_refr(a),
+                                                                            color(color),
+                                                                            specular_exponent(spec) {}
 
-Material::Material() : refractive_index(1), albedo(1, 0, 0, 0), diffuse_color(), specular_exponent() {}
+Material::Material() : refractive_index(1), diff_spec_refl_refr(1, 0, 0, 0), color(), specular_exponent() {}
 
 
 Hit::Hit() = default;
@@ -19,17 +20,16 @@ Hit::Hit(const vec3 &hit_point, float d, const vec3 &norm, const Material &mat) 
 
 Hit::operator bool() { return hit; }
 
-Sphere::Sphere(const vec3 &c, const float r, const Material &m) : material(m), center(c), radius(r) {}
+Sphere::Sphere(const vec3 &c, const float r, const Material &m) : material(m), center(c), r(r) {}
 
 Hit Sphere::ray_intersect(const Ray &ray) const {
-    //std::cout << "Full used";
 
     vec3 L = center - ray.orig;
     float tca = L * ray.dir;
     float d2 = L * L - tca * tca;
-    if (d2 > radius * radius)
+    if (d2 > r * r)
         return {};
-    float thc = std::sqrt(radius * radius - d2);
+    float thc = std::sqrt(r * r - d2);
     float t0 = tca - thc;
     float t1 = tca + thc;
     if (t0 < 0) t0 = t1;
@@ -49,11 +49,9 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
     auto t = d / ray.dir.y;
     if (t > 0 && t < MAX_DIST) { //watch in one side and n
         auto hit_point = ray.orig + ray.dir * t;
-        if (texture == nullptr) {
+        if (tex_w == -1) {
             return {hit_point, t, vec3(0, -d / std::fabs(d), 0), material};
         } else {
-//            float x_cord = hit_point.x / (EPS * tex_w);
-//            float z_cord = hit_point.z / (EPS * tex_h);
             auto dist = hit_point.norm();
             int x_coord = (long long)(hit_point.x *dist/ (EPS*200)) % tex_w;
             int z_coord = (long long)(hit_point.z *dist/ (EPS*200)) % tex_h;
@@ -64,8 +62,7 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
                 z_coord += tex_h;
             }
             auto ret_mat = Material(material);
-            ret_mat.diffuse_color = (*texture)[x_coord + tex_w * z_coord];
-            //material = //.diffuse_color = k;
+            ret_mat.color = texture[x_coord + tex_w * z_coord];
             return {hit_point, t, vec3(0, -d / std::fabs(d), 0), ret_mat};
 
         }
@@ -74,9 +71,22 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
     }
 }
 
-HorPlane::HorPlane(float d, Material mat, const std::vector<vec3> *tex, int tex_width, int tex_height) :
-        y(d), material(mat), texture(tex), tex_h(tex_height), tex_w(tex_width) {}
+HorPlane::HorPlane(float d, Material mat, std::vector<vec3> tex, int tex_width, int tex_height) :
+        y(d), material(mat), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width) {}
 
 Ray::Ray(const vec3 &o, const vec3 &d) : dir(d), orig(o) {}
 
 
+Background::Background(float t, const std::vector<vec3> &tex,int tex_width, int tex_height):
+        r(t), texture(tex), tex_h(tex_height), tex_w(tex_width), env(Sphere(vec3(0.,0.,0.), t, Material())){
+
+}
+
+vec3 Background::get_color(const Ray &ray) const {
+    //env.ray_intersect(ray);
+    vec3 p = env.ray_intersect(ray).point;
+    int i = (atan2(p.z, p.x)/(2*M_PI)+1)*tex_w;
+    i %= tex_w;
+    int j = acos(p.y / r) / M_PI * tex_h;
+    return texture[i+j*tex_w];
+}

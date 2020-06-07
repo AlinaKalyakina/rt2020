@@ -24,11 +24,11 @@ struct Light {
 };
 
 struct Material {
-    float refractive_index;
-    vec4 albedo;
-    vec3 diffuse_color;
+    vec4 diff_spec_refl_refr;
+    vec3 color;
     float specular_exponent;
-    Material(float r, const vec4 &a, const vec3 &color, float spec);
+    float refractive_index;
+    Material(const vec4 &a, const vec3 &color, float spec, float r);
     Material();
 };
 
@@ -53,7 +53,7 @@ struct Hit {
 
 struct Sphere {
     vec3 center;
-    float radius;
+    float r;
     Material material;
 
     Sphere(const vec3 &c, float r, const Material &m);
@@ -64,11 +64,23 @@ struct Sphere {
 struct HorPlane {
     float y = -4;
     Material material;
-    const std::vector<vec3>* texture = nullptr;
-    int tex_w{}, tex_h{};
+    std::vector<vec3> texture;
+    int tex_w = -1, tex_h=-1;
     HorPlane(float d, Material mat);
-    HorPlane(float d, Material mat, const std::vector<vec3>* tex, int tex_width, int tex_height);
+    HorPlane(float d, Material mat, std::vector<vec3> tex, int tex_width, int tex_height);
     Hit ray_intersect(const Ray &ray) const;
 };
 
+
+struct Background {
+
+    float r;
+    std::vector<vec3> texture;
+    int tex_w{}, tex_h{};
+    Sphere env;
+
+    Background(float d, const std::vector<vec3> &tex, int tex_width, int tex_height);
+    vec3 get_color(const Ray &ray) const;
+
+};
 #endif //RT_PRIMITIVES_H

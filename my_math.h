@@ -1,7 +1,3 @@
-//
-// Created by alina on 06.06.2020.
-//
-
 #ifndef RT_MY_MATH_H
 #define RT_MY_MATH_H
 #include <cmath>
@@ -13,7 +9,6 @@ struct vec3
     vec3() : x(0), y(0), z(0) {}
     vec3(float a, float b, float c) : x(a), y(b), z(c) {}
     vec3(const vec3& t) = default;
-    //explicit vec3(const float* ptr) : x(ptr[0]), y(ptr[1]), z(ptr[0]) {}
 
     inline float norm() { return std::sqrt(x*x+y*y+z*z); }
 
@@ -35,10 +30,18 @@ struct vec3
     }
 
     inline vec3 operator-() const {
-        return vec3((*this))*(-1.0);
+        return vec3((*this)) * (-1.0);
     }
+
     inline vec3 operator+(const vec3& t) const {
         return {x + t.x, y+t.y, z+t.z};
+    }
+
+    vec3& operator+=(const vec3& t) {
+        x += t.x;
+        y += t.y;
+        z += t.z;
+        return *this;
     }
 
     inline void crop(float min, float max) {

@@ -13,11 +13,11 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define IMG_WIDTH 512
-#define IMG_HEIGHT 512
+#define IMG_WIDTH 1024
+#define IMG_HEIGHT 768
 
 
-const float ambient_light = 0.2;
+const float ambient_light = 0.15;
 
 
 Ray reflect(const vec3 &I, const Hit &hit) {
@@ -27,16 +27,16 @@ Ray reflect(const vec3 &I, const Hit &hit) {
 }
 
 
-Ray refract(const vec3 &I, const Hit &hit, const float eta_t, const float eta_i = 1.f) { // Snell's law
+Ray refract(const vec3 &I, const Hit &hit, float eta_t, float eta_i = 1.f) {
     float cosi = -std::max(-1.f, std::min(1.f, I * hit.n));
     if (cosi < 0) {
         Hit hit1 = Hit(hit);
         hit1.n = -hit.n;
-        return refract(I, hit1, eta_i, eta_t); // if the ray comes from the inside the object, swap the air and the media
+        return refract(I, hit1, eta_i, eta_t);
     }
     float eta = eta_i / eta_t;
     float k = 1 - eta * eta * (1 - cosi * cosi);
-    vec3 refract_dir = k < 0 ? vec3(1, 0, 0) : I * eta + hit.n * (eta * cosi - sqrt(k)); // k<0 = total reflection, no ray to refract. I refract it anyways, this has no physical meaning
+    vec3 refract_dir = k < 0 ? vec3(1, 0, 0) : I * eta + hit.n * (eta * cosi - sqrt(k));
     vec3 refract_orig = refract_dir * hit.n < 0 ? hit.point - hit.n * 1e-3 : hit.point + hit.n * EPS;
     return {refract_orig, refract_dir};
 }
@@ -66,14 +66,14 @@ Hit scene_intersect(const Ray& ray, const std::vector<Sphere> &spheres, const st
 }
 
 vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes,
-              const std::vector<Light> &lights, size_t depth = 0) {
+              const std::vector<Light> &lights, const Background &background, uint depth = 0) {
     vec3 point, N;
     Material material;
 
     Hit hit;
 
-    if (depth > 4 || !(hit = scene_intersect(ray, spheres, planes))) {
-        return {0.458, 0.73, 0.99}; // sky
+    if (depth > 5 || !(hit = scene_intersect(ray, spheres, planes))) {
+        return background.get_color(ray);
     }
     point = hit.point;
     N = hit.n;
@@ -95,19 +95,20 @@ vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vec
                 powf(std::max(0.f, -reflect(-light_dir, hit).dir * ray.dir), material.specular_exponent) * light.intensity;
     }
 
-    auto res = material.diffuse_color * diffuse_light_intensity * material.albedo.x +
-               vec3(1., 1., 1.) * specular_light_intensity * material.albedo.y;
-    if (material.albedo.z > EPS) {
-        res = res + cast_ray(reflect(ray.dir, hit), spheres,planes, lights, depth + 1) * material.albedo.z;
+    auto res = material.color * diffuse_light_intensity * material.diff_spec_refl_refr.x +
+               vec3(1., 1., 1.) * specular_light_intensity * material.diff_spec_refl_refr.y;
+    if (material.diff_spec_refl_refr.z > EPS) {
+        res += cast_ray(reflect(ray.dir, hit), spheres,planes, lights,  background, depth + 1) * material.diff_spec_refl_refr.z;
     }
-    if (material.albedo.w > EPS) {
-        res = res + cast_ray(refract(ray.dir, hit, material.refractive_index), spheres, planes, lights, depth + 1) * material.albedo.w;
+    if (material.diff_spec_refl_refr.w > EPS) {
+        res += cast_ray(refract(ray.dir, hit, material.refractive_index), spheres, planes, lights, background, depth + 1) * material.diff_spec_refl_refr.w;
     }
     return res;
 }
 
 std::vector<uint32_t>
-render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, const std::vector<Light> &lights) {
+render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, const std::vector<Light> &lights,
+        const Background &background) {
     std::vector<vec3> raw_image((IMG_WIDTH + 1) * (IMG_HEIGHT + 1));
 
     //shared(spheres, planes, lights, raw_image) default(none)
@@ -115,9 +116,9 @@ render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, 
     for (size_t j = 0; j < IMG_HEIGHT + 1; j++) { // actual rendering loop
         for (size_t i = 0; i < IMG_WIDTH + 1; i++) {
             float dir_x = (i + 0.5f) - (IMG_WIDTH + 1)/ 2.;
-            float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;    // this flips the raw_image at the same time
+            float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;
             float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
-            vec3 color = cast_ray(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), spheres, planes, lights) * 255;
+            vec3 color = cast_ray(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), spheres, planes, lights, background) * 255;
             //vec3 int_color = color*255;
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
                     //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
@@ -145,7 +146,7 @@ render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, 
 std::vector<vec3> load_tex(char const *filename, int *width, int *height) {
     int n = -1;
     unsigned char *img = stbi_load(filename, width, height, &n, 0);
-    if (!img || 3 != n) {
+    if (!img) {
         std::cerr << "Error: can not load the environment map" << std::endl;
         exit(-1);
     }
@@ -185,7 +186,7 @@ int main(int argc, const char **argv) {
     char * end;
     if (cmdLineParams.find("-scene") != cmdLineParams.end())
         sceneId = strtol(cmdLineParams["-scene"].c_str(), &end, 10);
-    if (sceneId > 0) {
+    if (sceneId != 1) {
         return 0;
     }
     if (cmdLineParams.find("-threads") != cmdLineParams.end()) {
@@ -194,32 +195,39 @@ int main(int argc, const char **argv) {
         omp_set_num_threads(thread_n);
     }
 
-    //Material ivory(1.0, vec4(0.6, 0.3, 0.1, 0.0), vec3(0.4, 0.4, 0.3), 50.);
-    Material glass(1.5, vec4(0.0, 0.5, 0.25, 0.75), vec3(0.9, 0.4, 0.5), 125.);
-    Material blue_rubber(1.0, vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.1, 0.3), 10.);
-    Material grass_material(1.0, vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.3, 0.1), 10.);
-    Material mirror(1.0, vec4(0.0, 10.0, 0.8, 0.0), vec3(1.0, 1.0, 1.0), 1425.);
+    //materials
+    Material glass(vec4(0.0, 0.5, 0.25, 0.75), vec3(0.9, 0.4, 0.5), 125., 1.5);
+    Material blue_rubber(vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.1, 0.3), 10., 1.0);
+    Material grass_material(vec4(0.9, 0.1, 0.0, 0.0), vec3(0.1, 0.3, 0.1), 10., 1.0);
+    Material mirror(vec4(0.0, 10.0, 0.8, 0.0), vec3(1.0, 1.0, 1.0), 1425., 1.0);
 
-    int x, y;
-    auto grass_tex = load_tex("../tex/grass.jpg", &x, &y);
+    int grass_width, grass_height, sky_width, sky_height;
+    auto grass_tex = load_tex("../tex/grass.jpg", &grass_width, &grass_height);
+    auto sky_tex = load_tex("../tex/sky10.jpg", &sky_width, &sky_height);
+
+    //spheres
     std::vector<Sphere> spheres;
-    //spheres.emplace_back(vec3(-3, 0, -16), 2, ivory);
-    spheres.emplace_back(vec3(-5, -1, -20), 4, glass);
-    spheres.emplace_back(vec3(0, -3.5, -15), 1.5, blue_rubber);
-    spheres.emplace_back(vec3(5, -1, -20), 4, mirror);
+    spheres.emplace_back(vec3(-6, -1, -17), 4, glass);
+    spheres.emplace_back(vec3(0, -3, -12), 2, blue_rubber);
+    spheres.emplace_back(vec3(6, -1, -17), 4, mirror);
 
+    //hor plane
     std::vector<HorPlane> planes;
-    planes.emplace_back(-5, grass_material, &grass_tex, x, y);
+    planes.emplace_back(-5, grass_material, grass_tex, grass_width, grass_height);
 
+    //lights
     std::vector<Light> lights;
-    //lights.emplace_back(vec3(-20, 20, 20), 5.5);
-    lights.emplace_back(vec3(-20, 10, 20), 2);
-    lights.emplace_back(vec3(10, 10, 10), 2);
+    lights.emplace_back(vec3(20, 10, 5), 2);
+    lights.emplace_back(vec3(-10, 10, 10), 2);
 
-    auto image = render(spheres, planes, lights);
+    //background
+    Background background(MAX_DIST, sky_tex, sky_width, sky_height);
+    std::cout << "prepared_for picture making" << std::endl;
+    auto image = render(spheres, planes, lights, background);
 
     //t.clear();
     //t.shrink_to_fit();
+    std::cout << "picture_made" << std::endl;
     SaveBMP(outFilePath.c_str(), image.data(), IMG_WIDTH, IMG_HEIGHT);
     std::cout << "end." << std::endl;
     return 0;
