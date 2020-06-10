@@ -74,8 +74,8 @@ Material HorPlane::get_material(const vec3 &point) const {
         return material;
     } else {
         auto dist = point.norm();
-        int x_coord = (long long) (point.x * dist / (EPS * 200)) % tex_w;
-        int z_coord = (long long) (point.z * dist / (EPS * 200)) % tex_h;
+        int x_coord = (long long) (point.x * dist / (1e-3 * 200)) % tex_w;
+        int z_coord = (long long) (point.z * dist / (1e-3 * 200)) % tex_h;
         if (x_coord < 0) {
             x_coord += tex_w;
         }

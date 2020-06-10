@@ -19,6 +19,7 @@
 
 
 const float ambient_light = 0.15;
+typedef Hit(*ray_func)(const Ray &ray, const std::vector<Primitive*> &primitives);
 
 
 Ray reflect(const vec3 &I, const Hit &hit) {
@@ -43,22 +44,6 @@ Ray refract(const vec3 &I, const Hit &hit, float eta_t, float eta_i = 1.f) {
 }
 
 
-Hit trace_intersect(const Ray& ray, const std::vector<Primitive*> &primitives) {
-    float nearest_dist = std::numeric_limits<float>::max();
-    Hit best_hit;
-    for (auto p_primitive : primitives) {
-        //float dist_i;
-        auto hit = p_primitive->ray_intersect(ray);
-        if (hit && hit.dist < nearest_dist) {
-            best_hit = hit;
-            nearest_dist = hit.dist;
-        }
-    }
-
-    return best_hit;
-}
-
-
 float MinDist(vec3 pos, const std::vector<Primitive*> &primitives, Primitive* &nearest) {
     float cur_dist, min_dist = MAX_DIST * 10;
     nearest = nullptr;
@@ -73,12 +58,12 @@ float MinDist(vec3 pos, const std::vector<Primitive*> &primitives, Primitive* &n
 }
 
 vec3 EstimateNormal(vec3 z, const Primitive* prim) {
-    vec3 z1 = z + vec3(EPS, 0, 0);
-    vec3 z2 = z - vec3(EPS, 0, 0);
-    vec3 z3 = z + vec3(0, EPS, 0);
-    vec3 z4 = z - vec3(0, EPS, 0);
-    vec3 z5 = z + vec3(0, 0, EPS);
-    vec3 z6 = z - vec3(0, 0, EPS);
+    vec3 z1 = z + vec3(EPS/2, 0, 0);
+    vec3 z2 = z - vec3(EPS/2, 0, 0);
+    vec3 z3 = z + vec3(0, EPS/2, 0);
+    vec3 z4 = z - vec3(0, EPS/2, 0);
+    vec3 z5 = z + vec3(0, 0, EPS/2);
+    vec3 z6 = z - vec3(0, 0, EPS/2);
     float dx = prim->dist(z1) - prim->dist(z2);
     float dy = prim->dist(z3) - prim->dist(z4);
     float dz = prim->dist(z5) - prim->dist(z6);
@@ -88,16 +73,16 @@ vec3 EstimateNormal(vec3 z, const Primitive* prim) {
 
 
 Hit march_intersect(const Ray &ray, const std::vector<Primitive*> &primitives) {
-    float min_dist;
+    float min_dist = MAX_DIST;
     float t = 0;
 //    int object_id = -1;
     Primitive* nearest = nullptr;
-    for(int i = 0; i < MAX_ITER; i++) {
+    for(int i = 0; i < MAX_ITER && abs(min_dist) > EPS/5; i++) {
         min_dist = MinDist(ray.orig + ray.dir*t, primitives, nearest);
-        t += min_dist;
-        if (abs(min_dist) < EPS/5) {
-            break;
-        }
+        t += abs(min_dist);
+//        if (abs(min_dist) < EPS/5) {
+//            break;
+//        }
         if (t > MAX_DIST) {
             nearest = nullptr;
             t = MAX_DIST;
@@ -118,15 +103,31 @@ Hit march_intersect(const Ray &ray, const std::vector<Primitive*> &primitives) {
     return hit;
 }
 
+Hit trace_intersect(const Ray& ray, const std::vector<Primitive*> &primitives) {
+    float nearest_dist = std::numeric_limits<float>::max();
+    Hit best_hit;
+    for (auto p_primitive : primitives) {
+        //float dist_i;
+        auto hit = p_primitive->ray_intersect(ray);
+        if (hit && hit.dist < nearest_dist) {
+            best_hit = hit;
+            nearest_dist = hit.dist;
+        }
+    }
 
-vec3 ray_trace(const Ray& ray, const std::vector<Primitive*> &primitives,
-               const std::vector<Light> &lights, const Background &background, uint depth = 0) {
+    return best_hit;
+}
+
+
+template<ray_func F>
+vec3 pixel_color(const Ray& ray, const std::vector<Primitive*> &primitives,
+                 const std::vector<Light> &lights, const Background &background, uint depth = 0) {
     vec3 point, N;
     Material material;
 
     Hit hit;
 
-    if (depth > 5 || !(hit = trace_intersect(ray, primitives))) {
+    if (depth > 6 || !(hit = F(ray, primitives))) {
         return background.get_color(ray);
     }
     point = hit.point;
@@ -139,7 +140,7 @@ vec3 ray_trace(const Ray& ray, const std::vector<Primitive*> &primitives,
 
         vec3 shadow_orig = light_dir * N < 0 ? point - N * EPS : point + N * EPS; // checking if the point lies in the shadow of the lights[i]
 
-        Hit tmp = trace_intersect(Ray(shadow_orig, light_dir), primitives);
+        Hit tmp = F(Ray(shadow_orig, light_dir), primitives);
         if (tmp && (tmp.point - shadow_orig).norm() < (light.position - point).norm())
             continue;
 
@@ -152,16 +153,18 @@ vec3 ray_trace(const Ray& ray, const std::vector<Primitive*> &primitives,
     auto res = material.color * diffuse_light_intensity * material.diff_spec_refl_refr.x +
                vec3(1., 1., 1.) * specular_light_intensity * material.diff_spec_refl_refr.y;
     if (material.diff_spec_refl_refr.z > EPS) {
-        res += ray_trace(reflect(ray.dir, hit), primitives, lights, background, depth + 1) * material.diff_spec_refl_refr.z;
+        res += pixel_color<F>(reflect(ray.dir, hit), primitives, lights, background, depth + 1) * material.diff_spec_refl_refr.z;
     }
     if (material.diff_spec_refl_refr.w > EPS) {
-        res += ray_trace(refract(ray.dir, hit, material.refractive_index), primitives, lights, background,
-                         depth + 1) * material.diff_spec_refl_refr.w;
+        res += pixel_color<F>(refract(ray.dir, hit, material.refractive_index), primitives, lights, background,
+                           depth + 1) * material.diff_spec_refl_refr.w;
     }
     return res;
 }
 
 
+
+template<ray_func F>
 std::vector<uint32_t>
 render(const std::vector<Primitive*> primitives, const std::vector<Light> &lights,
         const Background &background) {
@@ -174,8 +177,8 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
             float dir_x = (i + 0.5f) - (IMG_WIDTH + 1)/ 2.;
             float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;
             float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
-            vec3 color = ray_trace(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), primitives, lights,
-                                   background) * 255;
+            vec3 color = pixel_color<F>(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), primitives, lights,
+                                     background) * 255;
             //vec3 int_color = color*255;
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
                     //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
@@ -195,8 +198,6 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
         }
     }
     //#pragma omp parallel for
-
-
     return std::move(res_image);
 }
 
@@ -288,7 +289,7 @@ int main(int argc, const char **argv) {
     //background
     Background background(MAX_DIST, sky_tex, sky_width, sky_height);
     std::cout << "prepared_for picture making" << std::endl;
-    auto image = render(primitives, lights, background);
+    auto image = render<march_intersect>(primitives, lights, background);
 
     for (auto p: primitives) {
         delete p;

@@ -9,7 +9,7 @@
 #include "my_math.h"
 
 #define EPS 1e-3
-#define MAX_DIST 200
+#define MAX_DIST 100
 
 struct Ray {
     vec3 dir;
