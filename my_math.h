@@ -10,7 +10,7 @@ struct vec3
     vec3(float a, float b, float c) : x(a), y(b), z(c) {}
     vec3(const vec3& t) = default;
 
-    inline float norm() { return std::sqrt(x*x+y*y+z*z); }
+    inline float norm() const { return std::sqrt(x*x+y*y+z*z); }
 
     vec3& normalize() {
         *this = (*this) * (1.0f / norm());

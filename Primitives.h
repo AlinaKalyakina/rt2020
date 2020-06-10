@@ -44,31 +44,36 @@ struct Hit {
     operator bool ();
 };
 
-//struct Primitive {
-//    Material material;
-//    explicit Primitive(const Material &m):material(m) {}
-//    virtual Hit ray_intersect(const Ray& ray) const = 0;
-//    virtual ~Primitive() = default;;
-//};
+struct Primitive {
+    //Material material;
+    //explicit Primitive(const Material &m):material(m) {}
+    virtual Hit ray_intersect(const Ray& ray) const = 0;
+    virtual float dist(const vec3& point) const = 0;
+    virtual Material get_material(const vec3& point) const = 0;
+    virtual ~Primitive() = default;
+};
 
-struct Sphere {
+struct Sphere: Primitive {
     vec3 center;
     float r;
     Material material;
-
     Sphere(const vec3 &c, float r, const Material &m);
-    Hit ray_intersect(const Ray& ray) const;
-
+    Hit ray_intersect(const Ray& ray) const override;
+    float dist(const vec3& point) const override;
+    Material get_material(const vec3& point) const override ;
 };
 
-struct HorPlane {
+struct HorPlane : Primitive {
     float y = -4;
     Material material;
     std::vector<vec3> texture;
     int tex_w = -1, tex_h=-1;
     HorPlane(float d, Material mat);
     HorPlane(float d, Material mat, std::vector<vec3> tex, int tex_width, int tex_height);
-    Hit ray_intersect(const Ray &ray) const;
+    Hit ray_intersect(const Ray &ray) const override;
+    float dist(const vec3& point) const override;
+    Material get_material(const vec3& point) const override;
+
 };
 
 
@@ -77,9 +82,9 @@ struct Background {
     float r;
     std::vector<vec3> texture;
     int tex_w{}, tex_h{};
-    Sphere env;
+    const Sphere env;
 
-    Background(float d, const std::vector<vec3> &tex, int tex_width, int tex_height);
+    Background(float d, std::vector<vec3> tex, int tex_width, int tex_height);
     vec3 get_color(const Ray &ray) const;
 
 };

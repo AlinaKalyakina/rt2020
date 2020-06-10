@@ -15,6 +15,7 @@
 #include "stb_image.h"
 #define IMG_WIDTH 1024
 #define IMG_HEIGHT 768
+#define MAX_ITER 100
 
 
 const float ambient_light = 0.15;
@@ -42,20 +43,12 @@ Ray refract(const vec3 &I, const Hit &hit, float eta_t, float eta_i = 1.f) {
 }
 
 
-Hit scene_intersect(const Ray& ray, const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes) {
+Hit trace_intersect(const Ray& ray, const std::vector<Primitive*> &primitives) {
     float nearest_dist = std::numeric_limits<float>::max();
     Hit best_hit;
-    for (const auto& primitive : spheres) {
+    for (auto p_primitive : primitives) {
         //float dist_i;
-        auto hit = primitive.ray_intersect(ray);
-        if (hit && hit.dist < nearest_dist) {
-            best_hit = hit;
-            nearest_dist = hit.dist;
-        }
-    }
-    for (const auto& primitive : planes) {
-        //float dist_i;
-        auto hit = primitive.ray_intersect(ray);
+        auto hit = p_primitive->ray_intersect(ray);
         if (hit && hit.dist < nearest_dist) {
             best_hit = hit;
             nearest_dist = hit.dist;
@@ -65,14 +58,75 @@ Hit scene_intersect(const Ray& ray, const std::vector<Sphere> &spheres, const st
     return best_hit;
 }
 
-vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes,
-              const std::vector<Light> &lights, const Background &background, uint depth = 0) {
+
+float MinDist(vec3 pos, const std::vector<Primitive*> &primitives, Primitive* &nearest) {
+    float cur_dist, min_dist = MAX_DIST * 10;
+    nearest = nullptr;
+    for (auto prim_p: primitives) {
+        cur_dist = prim_p->dist(pos);
+        if (cur_dist < min_dist) {
+            min_dist = cur_dist;
+            nearest = prim_p;
+        }
+    }
+    return min_dist;
+}
+
+vec3 EstimateNormal(vec3 z, const Primitive* prim) {
+    vec3 z1 = z + vec3(EPS, 0, 0);
+    vec3 z2 = z - vec3(EPS, 0, 0);
+    vec3 z3 = z + vec3(0, EPS, 0);
+    vec3 z4 = z - vec3(0, EPS, 0);
+    vec3 z5 = z + vec3(0, 0, EPS);
+    vec3 z6 = z - vec3(0, 0, EPS);
+    float dx = prim->dist(z1) - prim->dist(z2);
+    float dy = prim->dist(z3) - prim->dist(z4);
+    float dz = prim->dist(z5) - prim->dist(z6);
+    return vec3(dx, dy, dz).normalize();
+}
+
+
+
+Hit march_intersect(const Ray &ray, const std::vector<Primitive*> &primitives) {
+    float min_dist;
+    float t = 0;
+//    int object_id = -1;
+    Primitive* nearest = nullptr;
+    for(int i = 0; i < MAX_ITER; i++) {
+        min_dist = MinDist(ray.orig + ray.dir*t, primitives, nearest);
+        t += min_dist;
+        if (abs(min_dist) < EPS/5) {
+            break;
+        }
+        if (t > MAX_DIST) {
+            nearest = nullptr;
+            t = MAX_DIST;
+            break;
+        }
+    }
+    Hit hit;
+    hit.point = ray.orig + ray.dir*t;
+    hit.dist = t;
+    //ray.orig += ray.dir*t;
+    //vec3 n;
+    if (nearest != nullptr) {
+        hit.hit = true;
+        hit.n = EstimateNormal(hit.point, nearest);
+        hit.material = nearest->get_material(hit.point);
+    }
+    //Intersect res = Intersect(object_id, ray.pos, n);
+    return hit;
+}
+
+
+vec3 ray_trace(const Ray& ray, const std::vector<Primitive*> &primitives,
+               const std::vector<Light> &lights, const Background &background, uint depth = 0) {
     vec3 point, N;
     Material material;
 
     Hit hit;
 
-    if (depth > 5 || !(hit = scene_intersect(ray, spheres, planes))) {
+    if (depth > 5 || !(hit = trace_intersect(ray, primitives))) {
         return background.get_color(ray);
     }
     point = hit.point;
@@ -85,7 +139,7 @@ vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vec
 
         vec3 shadow_orig = light_dir * N < 0 ? point - N * EPS : point + N * EPS; // checking if the point lies in the shadow of the lights[i]
 
-        Hit tmp = scene_intersect(Ray(shadow_orig, light_dir), spheres, planes);
+        Hit tmp = trace_intersect(Ray(shadow_orig, light_dir), primitives);
         if (tmp && (tmp.point - shadow_orig).norm() < (light.position - point).norm())
             continue;
 
@@ -98,16 +152,18 @@ vec3 cast_ray(const Ray& ray, const std::vector<Sphere> &spheres, const std::vec
     auto res = material.color * diffuse_light_intensity * material.diff_spec_refl_refr.x +
                vec3(1., 1., 1.) * specular_light_intensity * material.diff_spec_refl_refr.y;
     if (material.diff_spec_refl_refr.z > EPS) {
-        res += cast_ray(reflect(ray.dir, hit), spheres,planes, lights,  background, depth + 1) * material.diff_spec_refl_refr.z;
+        res += ray_trace(reflect(ray.dir, hit), primitives, lights, background, depth + 1) * material.diff_spec_refl_refr.z;
     }
     if (material.diff_spec_refl_refr.w > EPS) {
-        res += cast_ray(refract(ray.dir, hit, material.refractive_index), spheres, planes, lights, background, depth + 1) * material.diff_spec_refl_refr.w;
+        res += ray_trace(refract(ray.dir, hit, material.refractive_index), primitives, lights, background,
+                         depth + 1) * material.diff_spec_refl_refr.w;
     }
     return res;
 }
 
+
 std::vector<uint32_t>
-render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, const std::vector<Light> &lights,
+render(const std::vector<Primitive*> primitives, const std::vector<Light> &lights,
         const Background &background) {
     std::vector<vec3> raw_image((IMG_WIDTH + 1) * (IMG_HEIGHT + 1));
 
@@ -118,7 +174,8 @@ render(const std::vector<Sphere> &spheres, const std::vector<HorPlane> &planes, 
             float dir_x = (i + 0.5f) - (IMG_WIDTH + 1)/ 2.;
             float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;
             float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
-            vec3 color = cast_ray(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), spheres, planes, lights, background) * 255;
+            vec3 color = ray_trace(Ray(vec3(0, 0, 0), vec3(dir_x, dir_y, dir_z).normalize()), primitives, lights,
+                                   background) * 255;
             //vec3 int_color = color*255;
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
                     //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
@@ -205,15 +262,23 @@ int main(int argc, const char **argv) {
     auto grass_tex = load_tex("../tex/grass.jpg", &grass_width, &grass_height);
     auto sky_tex = load_tex("../tex/sky10.jpg", &sky_width, &sky_height);
 
-    //spheres
-    std::vector<Sphere> spheres;
-    spheres.emplace_back(vec3(-6, -1, -17), 4, glass);
-    spheres.emplace_back(vec3(0, -3, -12), 2, blue_rubber);
-    spheres.emplace_back(vec3(6, -1, -17), 4, mirror);
+//    //spheres
+//    std::vector<Sphere> spheres;
+//    spheres.emplace_back(vec3(-6, -1, -17), 4, glass);
+//    spheres.emplace_back(vec3(0, -3, -12), 2, blue_rubber);
+//    spheres.emplace_back(vec3(6, -1, -17), 4, mirror);
+//
+//    //hor plane
+//    std::vector<HorPlane> planes;
+//    planes.emplace_back(-5, grass_material, grass_tex, grass_width, grass_height);
 
+    //primitives
+    std::vector<Primitive*> primitives;
+    primitives.emplace_back(new Sphere(vec3(-6, -1, -17), 4, glass));
+    primitives.emplace_back(new Sphere(vec3(0, -3, -12), 2, blue_rubber));
+    primitives.emplace_back(new Sphere(vec3(6, -1, -17), 4, mirror));
     //hor plane
-    std::vector<HorPlane> planes;
-    planes.emplace_back(-5, grass_material, grass_tex, grass_width, grass_height);
+    primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
     //lights
     std::vector<Light> lights;
@@ -223,8 +288,11 @@ int main(int argc, const char **argv) {
     //background
     Background background(MAX_DIST, sky_tex, sky_width, sky_height);
     std::cout << "prepared_for picture making" << std::endl;
-    auto image = render(spheres, planes, lights, background);
+    auto image = render(primitives, lights, background);
 
+    for (auto p: primitives) {
+        delete p;
+    }
     //t.clear();
     //t.shrink_to_fit();
     std::cout << "picture_made" << std::endl;

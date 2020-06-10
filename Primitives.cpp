@@ -20,10 +20,9 @@ Hit::Hit(const vec3 &hit_point, float d, const vec3 &norm, const Material &mat) 
 
 Hit::operator bool() { return hit; }
 
-Sphere::Sphere(const vec3 &c, const float r, const Material &m) : material(m), center(c), r(r) {}
+Sphere::Sphere(const vec3 &c, const float radius, const Material &m) : material(m), center(c), r(radius) {}
 
 Hit Sphere::ray_intersect(const Ray &ray) const {
-
     vec3 L = center - ray.orig;
     float tca = L * ray.dir;
     float d2 = L * L - tca * tca;
@@ -41,6 +40,14 @@ Hit Sphere::ray_intersect(const Ray &ray) const {
     }
 }
 
+float Sphere::dist(const vec3 &point) const {
+    return (center-point).norm()-r;
+}
+
+Material Sphere::get_material(const vec3 &point) const {
+    return material;
+}
+
 
 HorPlane::HorPlane(float d, Material m) : material(m), y(d) {}
 
@@ -49,23 +56,7 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
     auto t = d / ray.dir.y;
     if (t > 0 && t < MAX_DIST) { //watch in one side and n
         auto hit_point = ray.orig + ray.dir * t;
-        if (tex_w == -1) {
-            return {hit_point, t, vec3(0, -d / std::fabs(d), 0), material};
-        } else {
-            auto dist = hit_point.norm();
-            int x_coord = (long long)(hit_point.x *dist/ (EPS*200)) % tex_w;
-            int z_coord = (long long)(hit_point.z *dist/ (EPS*200)) % tex_h;
-            if (x_coord < 0) {
-                x_coord += tex_w;
-            }
-            if (z_coord < 0) {
-                z_coord += tex_h;
-            }
-            auto ret_mat = Material(material);
-            ret_mat.color = texture[x_coord + tex_w * z_coord];
-            return {hit_point, t, vec3(0, -d / std::fabs(d), 0), ret_mat};
-
-        }
+        return {hit_point, t, vec3(0, -d / std::fabs(d), 0), get_material(hit_point)};
     } else {
         return {};
     }
@@ -74,11 +65,34 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
 HorPlane::HorPlane(float d, Material mat, std::vector<vec3> tex, int tex_width, int tex_height) :
         y(d), material(mat), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width) {}
 
+float HorPlane::dist(const vec3 &point) const {
+    return point.y - y;
+}
+
+Material HorPlane::get_material(const vec3 &point) const {
+    if (tex_w == -1) {
+        return material;
+    } else {
+        auto dist = point.norm();
+        int x_coord = (long long) (point.x * dist / (EPS * 200)) % tex_w;
+        int z_coord = (long long) (point.z * dist / (EPS * 200)) % tex_h;
+        if (x_coord < 0) {
+            x_coord += tex_w;
+        }
+        if (z_coord < 0) {
+            z_coord += tex_h;
+        }
+        auto ret_mat = Material(material);
+        ret_mat.color = texture[x_coord + tex_w * z_coord];
+        return ret_mat;
+
+    }
+}
 Ray::Ray(const vec3 &o, const vec3 &d) : dir(d), orig(o) {}
 
 
-Background::Background(float t, const std::vector<vec3> &tex,int tex_width, int tex_height):
-        r(t), texture(tex), tex_h(tex_height), tex_w(tex_width), env(Sphere(vec3(0.,0.,0.), t, Material())){
+Background::Background(float t, std::vector<vec3> tex,int tex_width, int tex_height):
+        r(t), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width), env(Sphere(vec3(0.,0.,0.), t, Material())){
 
 }
 
