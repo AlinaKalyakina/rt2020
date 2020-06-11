@@ -3,9 +3,9 @@
 #include <utility>
 
 
-Light::Light(const vec3 &p, const float i) : position(p), intensity(i) {}
+Light::Light(const vec3f &p, const float i) : position(p), intensity(i) {}
 
-Material::Material(const vec4 &a, const vec3 &color, float spec, float r) : refractive_index(r), diff_spec_refl_refr(a),
+Material::Material(const vec4 &a, const vec3f &color, float spec, float r) : refractive_index(r), diff_spec_refl_refr(a),
                                                                             color(color),
                                                                             specular_exponent(spec) {}
 
@@ -14,16 +14,16 @@ Material::Material() : refractive_index(1), diff_spec_refl_refr(1, 0, 0, 0), col
 
 Hit::Hit() = default;
 
-Hit::Hit(const vec3 &hit_point, float d, const vec3 &norm, const Material &mat) : hit(true), point(hit_point), dist(d),
+Hit::Hit(const vec3f &hit_point, float d, const vec3f &norm, const Material &mat) : hit(true), point(hit_point), dist(d),
                                                                                   n(norm),
                                                                                   material(mat) {}
 
 Hit::operator bool() { return hit; }
 
-Sphere::Sphere(const vec3 &c, const float radius, const Material &m) : material(m), center(c), r(radius) {}
+Sphere::Sphere(const vec3f &c, const float radius, const Material &m) : material(m), center(c), r(radius) {}
 
 Hit Sphere::ray_intersect(const Ray &ray) const {
-    vec3 L = center - ray.orig;
+    vec3f L = center - ray.orig;
     float tca = L * ray.dir;
     float d2 = L * L - tca * tca;
     if (d2 > r * r)
@@ -35,16 +35,16 @@ Hit Sphere::ray_intersect(const Ray &ray) const {
     if (t0 < 0) {
         return {};
     } else {
-        vec3 hit = ray.orig + ray.dir * t0;
+        vec3f hit = ray.orig + ray.dir * t0;
         return {hit, t0, (hit - center).normalize(), material};
     }
 }
 
-float Sphere::dist(const vec3 &point) const {
+float Sphere::dist(const vec3f &point) const {
     return (center-point).norm()-r;
 }
 
-Material Sphere::get_material(const vec3 &point) const {
+Material Sphere::get_material(const vec3f &point) const {
     return material;
 }
 
@@ -56,20 +56,20 @@ Hit HorPlane::ray_intersect(const Ray &ray) const {
     auto t = d / ray.dir.y;
     if (t > 0 && t < MAX_DIST) { //watch in one side and n
         auto hit_point = ray.orig + ray.dir * t;
-        return {hit_point, t, vec3(0, -d / std::fabs(d), 0), get_material(hit_point)};
+        return {hit_point, t, vec3f(0, -d / std::fabs(d), 0), get_material(hit_point)};
     } else {
         return {};
     }
 }
 
-HorPlane::HorPlane(float d, Material mat, std::vector<vec3> tex, int tex_width, int tex_height) :
+HorPlane::HorPlane(float d, Material mat, std::vector<vec3f> tex, int tex_width, int tex_height) :
         y(d), material(mat), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width) {}
 
-float HorPlane::dist(const vec3 &point) const {
+float HorPlane::dist(const vec3f &point) const {
     return point.y - y;
 }
 
-Material HorPlane::get_material(const vec3 &point) const {
+Material HorPlane::get_material(const vec3f &point) const {
     if (tex_w == -1) {
         return material;
     } else {
@@ -88,19 +88,20 @@ Material HorPlane::get_material(const vec3 &point) const {
 
     }
 }
-Ray::Ray(const vec3 &o, const vec3 &d) : dir(d), orig(o) {}
+Ray::Ray(const vec3f &o, const vec3f &d) : dir(d), orig(o) {}
 
 
-Background::Background(float t, std::vector<vec3> tex,int tex_width, int tex_height):
-        r(t), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width), env(Sphere(vec3(0.,0.,0.), t, Material())){
+Background::Background(float t, std::vector<vec3f> tex, int tex_width, int tex_height):
+        r(t), texture(std::move(tex)), tex_h(tex_height), tex_w(tex_width), env(Sphere(vec3f(0., 0., 0.), t, Material())){
 
 }
 
-vec3 Background::get_color(const Ray &ray) const {
+vec3f Background::get_color(const Ray &ray) const {
     //env.ray_intersect(ray);
-    vec3 p = env.ray_intersect(ray).point;
+    vec3f p = env.ray_intersect(ray).point;
     int i = (atan2(p.z, p.x)/(2*M_PI)+1)*tex_w;
-    i %= tex_w;
+    i =  (i +2*tex_w)%tex_w;
     int j = acos(p.y / r) / M_PI * tex_h;
+    j = (j+tex_h)%tex_h;
     return texture[i+j*tex_w];
 }
