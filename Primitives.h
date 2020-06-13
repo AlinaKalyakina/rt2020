@@ -32,6 +32,12 @@ struct Material {
     Material();
 };
 
+
+struct TexMaterial:Material {
+    std::vector<vec3f> texture;
+    int tex_w{}, tex_h{};
+};
+
 struct Hit {
     bool hit = false;
     vec3f point;
@@ -76,6 +82,22 @@ struct HorPlane : Primitive {
 
 };
 
+
+//struct Fractal : Primitive {
+//    Material material;
+//    float dist(const vec3f& point) const override;
+//
+//};
+
+struct Triangle : Primitive {
+    vec3f v0, v1, v2;
+    vec3f n;
+    Material material;
+    Triangle(const vec3f &a, const vec3f &b, const vec3f &c, const Material& m);
+    Hit ray_intersect(const Ray &ray) const override;
+    float dist(const vec3f& point) const override;
+    Material get_material(const vec3f& point) const override;
+};
 
 struct Background {
 

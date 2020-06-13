@@ -83,9 +83,45 @@ struct vec4
 {
     vec4() : x(0), y(0), z(0), w(0) {}
     vec4(float a, float b, float c, float d) : x(a), y(b), z(c), w(d) {}
+    inline float operator[](int i) const {
+        switch (i) {
+            case 0:
+                return x;
+            case 1:
+                return y;
+            case 2:
+                return z;
+            case 3:
+                return w;
+        }
+    }
 
+    inline float& operator[](int i) {
+        switch (i) {
+            case 0:
+                return x;
+            case 1:
+                return y;
+            case 2:
+                return z;
+            case 3:
+                return w;
+        }
+    }
     float x, y, z, w;
 };
 
+
+struct vec2f {
+    float x, y;
+
+    vec2f() : x(0), y(0) {}
+    vec2f(float a, float b) : x(a), y(b) {}
+};
+
+template<typename T>
+vec3<T> abs(vec3<T> a) {
+    return vec3<T>(a.x > 0? a.x:-a.x, a.y > 0? a.y:-a.y,  a.z > 0? a.z:-a.z);
+}
 
 #endif //RT_MY_MATH_H

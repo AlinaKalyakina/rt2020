@@ -14,8 +14,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#define IMG_WIDTH 1024
-#define IMG_HEIGHT 768
+#define IMG_WIDTH 512
+#define IMG_HEIGHT 512
 #define MAX_ITER 300
 
 
@@ -188,6 +188,8 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
                     //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
         }
+        std::cout << j << std::endl;
+
     }
 
     std::vector<uint32_t> res_image(IMG_WIDTH * IMG_HEIGHT);
@@ -268,26 +270,20 @@ int main(int argc, const char **argv) {
     auto grass_tex = load_tex("../tex/grass.jpg", &grass_width, &grass_height);
     auto sky_tex = load_tex("../tex/sky10.jpg", &sky_width, &sky_height);
 
-//    //spheres
-//    std::vector<Sphere> spheres;
-//    spheres.emplace_back(vec3f(-6, -1, -17), 4, glass);
-//    spheres.emplace_back(vec3f(0, -3, -12), 2, blue_rubber);
-//    spheres.emplace_back(vec3f(6, -1, -17), 4, mirror);
-//
-    //hor plane
-    std::vector<HorPlane> planes;
-    planes.emplace_back(-5, grass_material, grass_tex, grass_width, grass_height);
-
-    //primitives
+//    //primitives
     std::vector<Primitive*> primitives;
-    primitives.emplace_back(new Sphere(vec3f(-6, -1, -17), 4, glass));
-    primitives.emplace_back(new Sphere(vec3f(0, -3, -12), 2, blue_rubber));
-    primitives.emplace_back(new Sphere(vec3f(6, -1, -17), 4, mirror));
-    //hor plane
-    primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
+//    primitives.emplace_back(new Sphere(vec3f(-6, -1, -17), 4, glass));
+//    primitives.emplace_back(new Sphere(vec3f(0, -3, -12), 2, blue_rubber));
+//    primitives.emplace_back(new Sphere(vec3f(6, -1, -17), 4, mirror));
+//    //hor plane
+//    primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
     //duck
-    //primitives.emplace_back(new Model("../duck.obj"));
+    //primitives.emplace_back(new Model("../covid.obj"));
+   // primitives.emplace_back(new Model("../tulip_flower/flower.obj"));
+    primitives.emplace_back(new Model("../cup/cup.obj"));
+
+    //primitives.emplace_back(new Triangle(vec3f()));
 
     //lights
     std::vector<Light> lights;
