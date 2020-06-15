@@ -1,7 +1,8 @@
-#ifndef RT_MY_MATH_H
-#define RT_MY_MATH_H
 #include <cmath>
 #include <algorithm>
+
+#ifndef RT_MY_MATH_H
+#define RT_MY_MATH_H
 
 template<typename T>
 struct vec3
@@ -27,8 +28,8 @@ struct vec3
         return {x-t.x, y-t.y, z-t.z};
     }
 
-    inline float operator*(const vec3<T>& t) const {
-        return x*t.x + y * t.y + z * t.z;
+    inline vec3<T> operator*(const vec3<T>& t) const {
+        return {x*t.x, y * t.y, z * t.z};
     }
 
     inline vec3<T> operator-() const {
@@ -117,11 +118,47 @@ struct vec2f {
 
     vec2f() : x(0), y(0) {}
     vec2f(float a, float b) : x(a), y(b) {}
+
+    inline vec2f operator*(float t) const {
+        return {x*t, y*t};
+    }
+    inline float norm() const { return std::sqrt(x*x+y*y); }
+    inline vec2f operator-(const vec2f& t) const {
+        return {x-t.x, y-t.y};
+    }
+    inline vec2f operator*(const vec2f& t) const {
+        return {x*t.x, y * t.y};
+    }
+
+
 };
 
 template<typename T>
 vec3<T> abs(vec3<T> a) {
     return vec3<T>(a.x > 0? a.x:-a.x, a.y > 0? a.y:-a.y,  a.z > 0? a.z:-a.z);
+}
+
+template<typename T>
+inline T dot(vec3<T> a, vec3<T> b) {
+    return a.x*b.x + a.y*b.y + a.z*b.z;
+}
+
+inline float dot(vec2f a, vec2f b) {
+    return a.x*b.x + a.y*b.y;
+}
+
+template<typename T>
+inline T clamp(T a, T min, T max) {
+    if (a > max) return max;
+    if (a < min) return min;
+    return a;
+}
+
+template<typename T>
+inline T sign(T a) {
+    if (a > 0) return 1;
+    if (a < 0) return -1;
+    return 0;
 }
 
 #endif //RT_MY_MATH_H

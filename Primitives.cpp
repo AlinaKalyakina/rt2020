@@ -27,8 +27,8 @@ Sphere::Sphere(const vec3f &c, const float radius, const Material &m) : material
 
 Hit Sphere::ray_intersect(const Ray &ray) const {
     vec3f L = center - ray.orig;
-    float tca = L * ray.dir;
-    float d2 = L * L - tca * tca;
+    float tca = dot(L,ray.dir);
+    float d2 = dot(L,L) - tca * tca;
     if (d2 > r * r)
         return {};
     float thc = std::sqrt(r * r - d2);
@@ -118,18 +118,18 @@ Hit Triangle::ray_intersect(const Ray &ray) const {
     vec3f edge1 = v1-v0;
     vec3f edge2 = v2-v0;
     vec3f pvec = cross(ray.dir, edge2);
-    float det = edge1*pvec;
+    float det = dot(edge1,pvec);
     if (det<EPS/100) return {};
 
     vec3f tvec = ray.orig - v0;
-    float u = tvec*pvec;
+    float u = dot(tvec,pvec);
     if (u < 0 || u > det) return {};
 
     vec3f qvec = cross(tvec, edge1);
-    float v = ray.dir*qvec;
+    float v = dot(ray.dir,qvec);
     if (v < 0 || u + v > det) return {};
 
-    float tnear = edge2*qvec * (1./det);
+    float tnear = dot(edge2,qvec) * (1./det);
     if (tnear <- EPS/100) return {};
 
     Hit hit;
@@ -137,7 +137,7 @@ Hit Triangle::ray_intersect(const Ray &ray) const {
     hit.point = ray.orig + ray.dir*tnear;
     hit.material = material;
     hit.dist = tnear;
-    hit.n = n*ray.dir < 0?n:-n;
+    hit.n = dot(n,ray.dir) < 0?n:-n;
     return hit;
 }
 
@@ -172,3 +172,43 @@ float sdBox( vec3f p, vec3f b ) {
 //    }
 //    return d;
 //}
+Hit Cone::ray_intersect(const Ray &ray) const {
+    return Hit();
+}
+
+
+float Cone::dist(const vec3f &p) const {
+//    float sdCone( in vec3 p, in vec2 c, float h )
+//    {
+//        // c is the sin/cos of the angle, h is height
+//        // Alternatively pass q instead of (c,h),
+//        // which is the point at the base in 2D
+//        vec2 q = h*vec2(c.x/c.y,-1.0);
+//
+//        vec2 w = vec2( length(p.xz), p.y );
+//        vec2 a = w - q*clamp( dot(w,q)/dot(q,q), 0.0, 1.0 );
+//        vec2 b = w - q*vec2( clamp( w.x/q.x, 0.0, 1.0 ), 1.0 );
+//        float k = sign( q.y );
+//        float d = min(dot( a, a ),dot(b, b));
+//        float s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
+//        return sqrt(d)*sign(s);
+//    }
+
+
+    vec3f point = p - pos;
+    vec2f q = vec2f(c.x/c.y,-1.0)*h;
+    vec2f w = vec2f(vec2f(point.x, point.z).norm(), point.y );
+    vec2f a = w - q*clamp( dot(w,q)/dot(q,q), 0.0f, 1.0f );
+    vec2f b = w - q*vec2f( clamp( w.x/q.x, 0.0f, 1.0f), 1.0 );
+    float k = sign(q.y);
+    float d = fmin(dot( a, a ),dot(b, b));
+    float s = fmax( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
+    return sqrt(d)*sign(s);
+   // return 0;
+}
+
+Material Cone::get_material(const vec3f &point) const {
+    return material;
+}
+
+Cone::Cone(const vec3f &_pos, float _h, const vec2f &_c, const Material &mat) : pos(_pos), h(_h), c(_c), material(mat) {}

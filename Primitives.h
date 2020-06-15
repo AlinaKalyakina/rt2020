@@ -66,6 +66,27 @@ struct Sphere: Primitive {
     Sphere(const vec3f &c, float r, const Material &m);
     Hit ray_intersect(const Ray& ray) const override;
     float dist(const vec3f& point) const override;
+    Material get_material(const vec3f& point) const override;
+};
+
+struct Cone: Primitive {
+    float h;
+    vec2f c;
+    Material material;
+    vec3f pos;
+    // c is the sin/cos of the angle, h is height
+//        // Alternatively pass q instead of (c,h),
+//        // which is the point at the base in 2D
+    Cone(const vec3f &pos, float h, const vec2f &c, const Material &mat);
+    Hit ray_intersect(const Ray& ray) const override;
+    float dist(const vec3f& point) const override;
+    Material get_material(const vec3f& point) const override ;
+};
+
+
+struct Box: Primitive {
+    Hit ray_intersect(const Ray& ray) const override;
+    float dist(const vec3f& point) const override;
     Material get_material(const vec3f& point) const override ;
 };
 
@@ -99,6 +120,7 @@ struct Triangle : Primitive {
     Material get_material(const vec3f& point) const override;
 };
 
+
 struct Background {
 
     float r;
@@ -110,4 +132,5 @@ struct Background {
     vec3f get_color(const Ray &ray) const;
 
 };
+
 #endif //RT_PRIMITIVES_H
