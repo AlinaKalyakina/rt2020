@@ -190,7 +190,9 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
             //vec3f int_color = color*255;
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
             //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
+
         }
+        //std::cout << j << std::endl;
     }
 
     std::vector<uint32_t> res_image(IMG_WIDTH * IMG_HEIGHT);
@@ -276,13 +278,13 @@ int main(int argc, const char **argv) {
         case 1:
 //    //primitives
             primitives.emplace_back(new Sphere(vec3f(-6, -1, -17), 4, mirror));
-            //primitives.emplace_back(new Sphere(vec3f(0, -3, -12), 2, blue_rubber));
+
             //    Cone(const vec3f &pos, float h, const vec2f &c, const Material &mat);
             primitives.emplace_back(new Cone(vec3f(0, 1, -13), 6, vec2f(0.35, 0.96), blue_rubber));
 
             //    Box(const vec3f &pos, const vec3f &dims, const Material &material);
             primitives.emplace_back(new Box(vec3f(7, -2, -20), vec3f(4, 4, 4), glass));
-            //primitives.emplace_back(new Sphere(vec3f(6, -1, -17), 4, mirror));
+
 //    //hor plane
             primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
@@ -291,7 +293,6 @@ int main(int argc, const char **argv) {
             lights.emplace_back(vec3f(20, 10, 5), 2);
             lights.emplace_back(vec3f(-10, 10, 10), 2);
 
-
             //background
             std::cout << "prepared_for picture making" << std::endl;
             break;
@@ -299,25 +300,26 @@ int main(int argc, const char **argv) {
             primitives.push_back(new Fractal(vec3f(3, -2, -12), blue_rubber));
             primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
-            //lights.emplace_back(vec3f(10, 4, 10), 2);
             lights.emplace_back(vec3f(-10, 10, 10), 4);
-            //duck
-            //primitives.emplace_back(new Model("../covid.obj"));
-            // primitives.emplace_back(new Model("../tulip_flower/flower.obj"));
+            break;
+        case 3:
             //primitives.emplace_back(new Model("../cup/cup.obj"));
+            primitives.emplace_back(new Model("../teaport/t.obj"));
+
+            primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
+
+            lights.emplace_back(vec3f(-10, 10, 10), 4);
             break;
         default:
             return 0;
 
     }
 
-    auto image = render<march_intersect>(primitives, lights, background);
+    auto image = render<trace_intersect>(primitives, lights, background);
 
     for (auto p: primitives) {
         delete p;
     }
-    //t.clear();
-    //t.shrink_to_fit();
     std::cout << "picture_made" << std::endl;
     SaveBMP(outFilePath.c_str(), image.data(), IMG_WIDTH, IMG_HEIGHT);
     std::cout << "end." << std::endl;

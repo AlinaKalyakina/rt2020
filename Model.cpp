@@ -147,7 +147,7 @@ std::vector<Mesh> load_obj(const char *filename) {
     std::ifstream in;
     in.open (filename, std::ifstream::in);
     if (in.fail()) {
-        std::cerr << "Failed to open " << filename << std::endl;
+        //std::cerr << "Failed to open " << filename << std::endl;
         exit(-1);
     }
     std::string line;
@@ -178,11 +178,12 @@ std::vector<Mesh> load_obj(const char *filename) {
             vec3f v;
             for (int i = 0; i < 3; i++) {
                 iss >> v[i];
-                v[i] /= 10;
+                v[i] *= 30;
             }
-            std::swap(v.y, v.z);// = v.z, v.y;
-            v.z -= 25;
-            v.y -= 10;
+            //std::swap(v.y, v.z);// = v.z, v.y;
+            v.z -= 15;
+            v.y -= 5;
+            //v.y -= 10;
             verts.emplace_back(v);
         } else if (token == "vn") {
             //iss >> trash_s;
@@ -219,7 +220,7 @@ std::vector<Mesh> load_obj(const char *filename) {
             materials = load_materials((path_to_model + tmp).c_str(), path_to_model);
 
         } else if (token != ""){
-            std::cerr << "unknown token " << token << std::endl;
+            //std::cerr << "unknown token " << token << std::endl;
         }
         token = "";
         std::getline(in, line);
@@ -236,7 +237,7 @@ std::map<std::string, Material> load_materials(const char* path, const std::stri
 
     // If the file is not found return false
     if (!file.is_open()) {
-        std::cerr << "Can't open .mtl";
+        //std::cerr << "Can't open .mtl";
         materials["default"] = Material();
         return std::move(materials);
     }
@@ -357,21 +358,21 @@ std::map<std::string, Material> load_materials(const char* path, const std::stri
 
 // Moller and Trumbore
 bool Model::ray_triangle_intersect(const int &fi, const vec3f &orig, const vec3f &dir, float &tnear) const {
-    return false;
-//    vec3f edge1 = point(vert(fi,1)) - point(vert(fi,0));
-//    vec3f edge2 = point(vert(fi,2)) - point(vert(fi,0));
-//    vec3f pvec = cross(dir, edge2);
-//    float det = dot(edge1,pvec);
-//    if (det<1e-5) return false;
-//
-//    vec3f tvec = orig - point(vert(fi,0));
-//    float u = dot(tvec,pvec);
-//    if (u < 0 || u > det) return false;
-//
-//    vec3f qvec = cross(tvec, edge1);
-//    float v = dot(dir,qvec);
-//    if (v < 0 || u + v > det) return false;
-//    return tnear>1e-5;
+//    return false;
+    vec3f edge1 = point(vert(fi,1)) - point(vert(fi,0));
+    vec3f edge2 = point(vert(fi,2)) - point(vert(fi,0));
+    vec3f pvec = cross(dir, edge2);
+    float det = dot(edge1,pvec);
+    if (det<1e-5) return false;
+
+    vec3f tvec = orig - point(vert(fi,0));
+    float u = dot(tvec,pvec);
+    if (u < 0 || u > det) return false;
+
+    vec3f qvec = cross(tvec, edge1);
+    float v = dot(dir,qvec);
+    if (v < 0 || u + v > det) return false;
+    return tnear>1e-5;
 }
 
 
@@ -425,22 +426,6 @@ Hit Model::ray_intersect(const Ray &ray) const {
         }
     }
     return best_hit;
-//    for (int t=0; t<faces.size(); t++) {
-//        float dist;
-//        if (ray_triangle_intersect(t, ray.orig, ray.dir, cur_dist) && cur_dist < best_dist) {
-//            best_dist = cur_dist;
-//            hit.point = ray.orig + ray.dir * best_dist;
-//            hit.dist = best_dist;
-//            hit.hit = true;
-//            vec3f v0 = point(vert(t, 0));
-//            vec3f v1 = point(vert(t, 1));
-//            vec3f v2 = point(vert(t, 2));
-//            hit.n = cross(v1-v0, v2-v0).normalize();
-//            hit.material =  material;
-//            }
-//    }
-
-    //return hit;
 }
 
 
@@ -452,78 +437,74 @@ Material Model::get_material(const vec3f &point) const {
     return material;
 }
 
-//std::ostream& operator<<(std::ostream& out, Model &m) {
-//    for (int i=0; i<m.nverts(); i++) {
-//        out << "v " << m.point(i) << std::endl;
-//    }
-//    for (int i=0; i<m.nfaces(); i++) {
-//        out << "f ";
-//        for (int k=0; k<3; k++) {
-//            out << (m.vert(i,k)+1) << " ";
-//        }
-//        out << std::endl;
-//    }
-//    return out;
-//}
-Mesh::Mesh(std::string _name, std::vector<Vertex> _vertices, std::vector<vec3i> _faces, Material _material) :
-name(std::move(_name)), vertices(std::move(_vertices)), faces(std::move(_faces)), material(_material){
 
-}
+Mesh::Mesh(std::string _name, std::vector<Vertex> _vertices, std::vector<vec3i> _faces, Material _material) :
+name(std::move(_name)), vertices(std::move(_vertices)), faces(std::move(_faces)), material(_material){}
 
 Hit Mesh::ray_intersect(const Ray &ray) const {
-    return Hit();
-//    float best_dist = std::numeric_limits<float>::max();
-//    vec3i best_face(-1, -1, -1);
-//    float tnear;
-//    for (const auto& f:faces){
-//        auto v0 = vertices[f.x];
-//        auto v1 = vertices[f.y];
-//        auto v2 = vertices[f.z];
-//        vec3f edge1 = v1.pos - v0.pos;
-//        vec3f edge2 = v2.pos - v0.pos;
-//        vec3f pvec = cross(ray.dir, edge2);
-//        float det = dot(edge1,pvec);
-//        if (det<1e-5) continue;
-//
-//        vec3f tvec = ray.orig - v0.pos;
-//        float u = dot(tvec,pvec);
-//        if (u < 0 || u > det) continue;
-//
-//        vec3f qvec = cross(tvec, edge1);
-//        float v = dot(ray.dir,qvec);
-//        if (v < 0 || u + v > det) continue;
-//        tnear = dot(edge2,qvec) * (1./det);
-//
-//        if (tnear <= EPS*1e-2) {
-//            return {};
-//        }
-//
-//        if (best_dist > tnear) {
-//            best_face = f;
-//            best_dist = tnear;
-//        }
-//
-//        //return tnear>1e-5;
-//
+    //return Hit();
+    float best_dist = std::numeric_limits<float>::max();
+    vec3i best_face(-1, -1, -1);
+    float tnear;
+    //std::cout << "faces "<< faces.size() << std::endl;
+    for (const auto& f:faces){
+        auto v0 = vertices[f.x];
+        auto v1 = vertices[f.y];
+        auto v2 = vertices[f.z];
+        vec3f edge1 = v1.pos - v0.pos;
+        vec3f edge2 = v2.pos - v0.pos;
+        vec3f pvec = cross(ray.dir, edge2);
+        float det = dot(edge1,pvec);
+        if (det<1e-5) continue;
+
+        vec3f tvec = ray.orig - v0.pos;
+        float u = dot(tvec,pvec);
+        if (u < 0 || u > det) continue;
+
+        vec3f qvec = cross(tvec, edge1);
+        float v = dot(ray.dir,qvec);
+        if (v < 0 || u + v > det) continue;
+        tnear = dot(edge2,qvec) * (1./det);
+
+        if (tnear <= EPS*1e-2) {
+            return {};
+        }
+
+        if (best_dist > tnear) {
+            best_face = f;
+            best_dist = tnear;
+        }
+
+        //return tnear>1e-5;
+
+    }
+    if (best_face.x < 0){
+        return {};
+    }
+    Hit hit;
+    hit.hit = true;
+    hit.dist = best_dist;
+    hit.point = ray.orig + ray.dir*best_dist;
+    hit.material = material;
+    auto v0 = vertices[best_face.x];
+    auto v1 = vertices[best_face.y];
+    auto v2 = vertices[best_face.z];
+    auto a = (v0.pos-hit.point).norm();
+    auto b = (v1.pos-hit.point).norm();
+    auto c = (v2.pos-hit.point).norm();
+    //hit.n = cross(v1.pos-v0.pos, v2.pos-v0.pos).normalize();
+//    if (a < b && a < c) {
+//        hit.n = v0.n;
 //    }
-//    if (best_face.x < 0){
-//        return {};
+//    if (b < a && b < c) {
+//        hit.n = v1.n;
 //    }
-//    Hit hit;
-//    hit.hit = true;
-//    hit.dist = best_dist;
-//    hit.point = ray.orig + ray.dir*best_dist;
-//    hit.material = material;
-//    auto v0 = vertices[best_face.x];
-//    auto v1 = vertices[best_face.y];
-//    auto v2 = vertices[best_face.z];
-//    auto a = (v0.pos-hit.point).norm();
-//    auto b = (v1.pos-hit.point).norm();
-//    auto c = (v2.pos-hit.point).norm();
-//    hit.n = cross(v1.pos-v0.pos, v2.pos-v0.pos).normalize();
-////    hit.n = (v0.n*(b*c) + v1.n*(a*c) + v2.n*(a*b))*(1/(b*c + a*c +a*b));
-//    if (dot(hit.n, ray.dir) > 0) {
-//        hit.n = -hit.n;
+//    if (c < a && c < b) {
+//        hit.n = v2.n;
 //    }
-//    return std::move(hit);
+    hit.n = (v0.n*(b*c*b*c*b*c) + v1.n*(a*c*a*c*a*c) + v2.n*(a*b*a*b*a*b))*(1/(b*c*b*c*b*c + a*c*a*c*a*c +a*b*a*b*a*b));
+    if (dot(hit.n, ray.dir) > 0) {
+        hit.n = -hit.n;
+    }
+    return std::move(hit);
 }
