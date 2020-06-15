@@ -148,7 +148,7 @@ float Triangle::dist(const vec3f &point) const {
 
 Material Triangle::get_material(const vec3f &point) const {
     //TODO
-    return Material();
+    return {};
 }
 
 float sdBox( vec3f p, vec3f b ) {
@@ -173,28 +173,11 @@ float sdBox( vec3f p, vec3f b ) {
 //    return d;
 //}
 Hit Cone::ray_intersect(const Ray &ray) const {
-    return Hit();
+    return {};
 }
 
 
 float Cone::dist(const vec3f &p) const {
-//    float sdCone( in vec3 p, in vec2 c, float h )
-//    {
-//        // c is the sin/cos of the angle, h is height
-//        // Alternatively pass q instead of (c,h),
-//        // which is the point at the base in 2D
-//        vec2 q = h*vec2(c.x/c.y,-1.0);
-//
-//        vec2 w = vec2( length(p.xz), p.y );
-//        vec2 a = w - q*clamp( dot(w,q)/dot(q,q), 0.0, 1.0 );
-//        vec2 b = w - q*vec2( clamp( w.x/q.x, 0.0, 1.0 ), 1.0 );
-//        float k = sign( q.y );
-//        float d = min(dot( a, a ),dot(b, b));
-//        float s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
-//        return sqrt(d)*sign(s);
-//    }
-
-
     vec3f point = p - pos;
     vec2f q = vec2f(c.x/c.y,-1.0)*h;
     vec2f w = vec2f(vec2f(point.x, point.z).norm(), point.y );
@@ -204,7 +187,6 @@ float Cone::dist(const vec3f &p) const {
     float d = fmin(dot( a, a ),dot(b, b));
     float s = fmax( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
     return sqrt(d)*sign(s);
-   // return 0;
 }
 
 Material Cone::get_material(const vec3f &point) const {
@@ -212,3 +194,21 @@ Material Cone::get_material(const vec3f &point) const {
 }
 
 Cone::Cone(const vec3f &_pos, float _h, const vec2f &_c, const Material &mat) : pos(_pos), h(_h), c(_c), material(mat) {}
+
+Hit Box::ray_intersect(const Ray &ray) const {
+    return {};
+}
+
+Material Box::get_material(const vec3f &point) const {
+    return material;
+}
+
+float Box::dist(const vec3f &point) const {
+    auto p = point - pos;
+    vec3f d = abs(p) - b;
+    return fmin(fmax(d.x,fmax(d.y,d.z)),0.0) + vec3f(fmax(d.x,0.0), fmax(d.y,0.0), fmax(d.z,0.0)).norm();
+}
+
+Box::Box(const vec3f &_pos, const vec3f &_dims, const Material &_material) : pos(_pos), b(_dims), material(_material) {
+
+}

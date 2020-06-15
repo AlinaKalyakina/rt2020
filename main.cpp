@@ -277,12 +277,14 @@ int main(int argc, const char **argv) {
     switch (sceneId) {
         case 1:
 //    //primitives
-            primitives.emplace_back(new Sphere(vec3f(-6, -1, -17), 4, glass));
+            primitives.emplace_back(new Sphere(vec3f(-6, -1, -17), 4, mirror));
             //primitives.emplace_back(new Sphere(vec3f(0, -3, -12), 2, blue_rubber));
             //    Cone(const vec3f &pos, float h, const vec2f &c, const Material &mat);
             primitives.emplace_back(new Cone(vec3f(0, 1, -13), 6, vec2f(0.35, 0.96), blue_rubber));
 
-            primitives.emplace_back(new Sphere(vec3f(6, -1, -17), 4, mirror));
+            //    Box(const vec3f &pos, const vec3f &dims, const Material &material);
+            primitives.emplace_back(new Box(vec3f(7, -2, -20), vec3f(4, 4, 4), glass));
+            //primitives.emplace_back(new Sphere(vec3f(6, -1, -17), 4, mirror));
 //    //hor plane
             primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 

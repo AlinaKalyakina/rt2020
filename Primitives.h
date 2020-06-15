@@ -85,6 +85,11 @@ struct Cone: Primitive {
 
 
 struct Box: Primitive {
+    Material material;
+    vec3f pos;
+    vec3f b; //dims
+
+    Box(const vec3f &pos, const vec3f &dims, const Material &material);
     Hit ray_intersect(const Ray& ray) const override;
     float dist(const vec3f& point) const override;
     Material get_material(const vec3f& point) const override ;
