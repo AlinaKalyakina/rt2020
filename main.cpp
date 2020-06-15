@@ -28,7 +28,7 @@ typedef Hit(*ray_func)(const Ray &ray, const std::vector<Primitive *> &primitive
 
 Ray reflect(const vec3f &I, const Hit &hit) {
     vec3f reflect_dir = (I - hit.n * 2.f * dot(I, hit.n)).normalize();
-    vec3f reflect_orig = dot(reflect_dir, hit.n) < 0 ? hit.point - hit.n * 1e-3 : hit.point + hit.n * EPS; // offset the original point to avoid occlusion by the object itself
+    vec3f reflect_orig = dot(reflect_dir, hit.n) < 0 ? hit.point - hit.n * EPS : hit.point + hit.n * EPS; // offset the original point to avoid occlusion by the object itself
     return {reflect_orig, reflect_dir};
 }
 
@@ -182,7 +182,7 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
 #pragma omp parallel for
     for (size_t j = 0; j < IMG_HEIGHT + 1; j++) { // actual rendering loop
         for (size_t i = 0; i < IMG_WIDTH + 1; i++) {
-            float dir_x = (i + 0.5f) - (IMG_WIDTH + 1)/ 2.;
+            float dir_x = (i + 0.5f) - (IMG_WIDTH + 1.f)/ 2.;
             float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;
             float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
             vec3f color = pixel_color<F>(Ray(vec3f(0, 0, 0), vec3f(dir_x, dir_y, dir_z).normalize()), primitives, lights,
@@ -254,9 +254,7 @@ int main(int argc, const char **argv) {
     char *end;
     if (cmdLineParams.find("-scene") != cmdLineParams.end())
         sceneId = strtol(cmdLineParams["-scene"].c_str(), &end, 10);
-    if (sceneId != 1) {
-        return 0;
-    }
+
     if (cmdLineParams.find("-threads") != cmdLineParams.end()) {
         int thread_n = strtol(cmdLineParams["-threads"].c_str(), &end, 10);
         omp_set_dynamic(0);
@@ -298,6 +296,11 @@ int main(int argc, const char **argv) {
             std::cout << "prepared_for picture making" << std::endl;
             break;
         case 2:
+            primitives.push_back(new Fractal(vec3f(3, -2, -12), blue_rubber));
+            primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
+
+            //lights.emplace_back(vec3f(10, 4, 10), 2);
+            lights.emplace_back(vec3f(-10, 10, 10), 4);
             //duck
             //primitives.emplace_back(new Model("../covid.obj"));
             // primitives.emplace_back(new Model("../tulip_flower/flower.obj"));

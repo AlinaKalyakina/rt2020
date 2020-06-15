@@ -109,11 +109,15 @@ struct HorPlane : Primitive {
 };
 
 
-//struct Fractal : Primitive {
-//    Material material;
-//    float dist(const vec3f& point) const override;
-//
-//};
+struct Fractal : Primitive {
+    Material material;
+    vec3f pos;
+    Fractal(const vec3f &_pos, const Material &mat);
+    Hit ray_intersect(const Ray &ray) const override;
+    float dist(const vec3f& point) const override;
+    Material get_material(const vec3f& point) const override;
+
+};
 
 struct Triangle : Primitive {
     vec3f v0, v1, v2;

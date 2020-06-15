@@ -28,6 +28,10 @@ struct vec3
         return {x-t.x, y-t.y, z-t.z};
     }
 
+    inline vec3<T> operator-(float t) const {
+        return {x-t, y-t, z-t};
+    }
+
     inline vec3<T> operator*(const vec3<T>& t) const {
         return {x*t.x, y * t.y, z * t.z};
     }
@@ -159,6 +163,19 @@ inline T sign(T a) {
     if (a > 0) return 1;
     if (a < 0) return -1;
     return 0;
+}
+
+template <typename T>
+inline vec3<T> mod(vec3<T> a, float t) {
+    return vec3<T>(a.x - t * floor(a.x/t), a.y - t * floor(a.y/t), a.z - t * floor(a.z/t));
+}
+
+inline vec3f abs(vec3f a) {
+    return vec3f(fabsf(a.x), fabsf(a.y), fabsf(a.z));
+}
+template<typename T>
+inline vec3<T> operator-(float a, const vec3<T>& t) {
+    return {a-t.x, a-t.y, a-t.z};
 }
 
 #endif //RT_MY_MATH_H

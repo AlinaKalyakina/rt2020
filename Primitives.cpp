@@ -1,6 +1,8 @@
 #include "Primitives.h"
 
 #include <utility>
+#include <iostream>
+
 
 vec3f cross(vec3f v1, vec3f v2) {
     return vec3f(v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x);
@@ -77,8 +79,8 @@ Material HorPlane::get_material(const vec3f &point) const {
         return material;
     } else {
         auto dist = point.norm();
-        int x_coord = (long long) (point.x * dist / (1e-3 * 200)) % tex_w;
-        int z_coord = (long long) (point.z * dist / (1e-3 * 200)) % tex_h;
+        int x_coord = (long long) (point.x * dist / (EPS * 200)) % tex_w;
+        int z_coord = (long long) (point.z * dist / (EPS * 200)) % tex_h;
         if (x_coord < 0) {
             x_coord += tex_w;
         }
@@ -102,10 +104,20 @@ Background::Background(float t, std::vector<vec3f> tex, int tex_width, int tex_h
 vec3f Background::get_color(const Ray &ray) const {
     //env.ray_intersect(ray);
     vec3f p = env.ray_intersect(ray).point;
-    int i = (atan2(p.z, p.x)/(2*M_PI)+1)*tex_w;
-    i =  (i +2*tex_w)%tex_w;
-    int j = acos(p.y / r) / M_PI * tex_h;
-    j = (j+tex_h)%tex_h;
+    int i = (atan2f(p.z, p.x)/(2*M_PI)+1)*tex_w;
+    i =  (i +100*tex_w)%tex_w;
+    int j = acosf(p.y / r) / M_PI * tex_h;
+    //std::cout <<p.y<< " " <<  j << std::endl;
+    j =(j+100*tex_h)%tex_h;
+    if (i < 0) {
+        i = 0;
+    }
+    if (j < 0) {
+        j = 0;
+    }
+    //std::cout << j << std::endl;
+    //std::cout << texture.size() << " " << i << " " << j << " " << i+j*tex_w << std::endl;
+
     return texture[i+j*tex_w];
 }
 
@@ -129,7 +141,7 @@ Hit Triangle::ray_intersect(const Ray &ray) const {
     float v = dot(ray.dir,qvec);
     if (v < 0 || u + v > det) return {};
 
-    float tnear = dot(edge2,qvec) * (1./det);
+    float tnear = dot(edge2,qvec) * (1.f/det);
     if (tnear <- EPS/100) return {};
 
     Hit hit;
@@ -155,23 +167,6 @@ float sdBox( vec3f p, vec3f b ) {
     vec3f d = abs(p) - b;
     return fmin(fmax(d.x,fmax(d.y,d.z)),0.0) + vec3f(fmax(d.x,0.0), fmax(d.y,0.0), fmax(d.z,0.0)).norm();
 }
-//
-//float Fractal::dist(const vec3f &p) const {
-//    float d = sdBox(p, vec3f(1, 1, 1));
-//    float s = 1.0, da, db, dc, c;
-//    vec3f a, r;
-//    for (int i = 0; i < 4; i++) {
-//        a = mod( p*s, 2.0 )-1.0;
-//        s *= 3;
-//        r = abs(vec3f(1, 1,1)- abs(a)*3);
-//        da = fmax(r.x,r.y);
-//        db = fmax(r.y,r.z);
-//        dc = fmax(r.z,r.x);
-//        c = (fmin(dc, fmin(da, db)) - 1)/s;
-//        d = fmax(d, c);
-//    }
-//    return d;
-//}
 Hit Cone::ray_intersect(const Ray &ray) const {
     return {};
 }
@@ -184,9 +179,9 @@ float Cone::dist(const vec3f &p) const {
     vec2f a = w - q*clamp( dot(w,q)/dot(q,q), 0.0f, 1.0f );
     vec2f b = w - q*vec2f( clamp( w.x/q.x, 0.0f, 1.0f), 1.0 );
     float k = sign(q.y);
-    float d = fmin(dot( a, a ),dot(b, b));
-    float s = fmax( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
-    return sqrt(d)*sign(s);
+    float d = fminf(dot( a, a ),dot(b, b));
+    float s = fmaxf( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
+    return sqrtf(d)*sign(s);
 }
 
 Material Cone::get_material(const vec3f &point) const {
@@ -205,10 +200,40 @@ Material Box::get_material(const vec3f &point) const {
 
 float Box::dist(const vec3f &point) const {
     auto p = point - pos;
-    vec3f d = abs(p) - b;
-    return fmin(fmax(d.x,fmax(d.y,d.z)),0.0) + vec3f(fmax(d.x,0.0), fmax(d.y,0.0), fmax(d.z,0.0)).norm();
+    return sdBox(p, b);
+    //vec3f d = abs(p) - b;
+    //return fmin(fmax(d.x,fmax(d.y,d.z)),0.0) + vec3f(fmax(d.x,0.0), fmax(d.y,0.0), fmax(d.z,0.0)).norm();
 }
 
-Box::Box(const vec3f &_pos, const vec3f &_dims, const Material &_material) : pos(_pos), b(_dims), material(_material) {
+Box::Box(const vec3f &_pos, const vec3f &_dims, const Material &_material) : pos(_pos), b(_dims), material(_material) {}
+
+Hit Fractal::ray_intersect(const Ray &ray) const {
+    return {};
+}
+//
+float Fractal::dist(const vec3f &point) const {
+//    return 0;
+    vec3f p = point - pos;
+    float d = sdBox(p, vec3f(3, 3, 3));
+    float s = 1.0, da, db, dc, c;
+    vec3f a, r;
+    for (int i = 0; i < 4; i++) {
+        a = mod( p*s, 2.0 )-1.0f;
+        s *= 3;
+        r = abs(1 - abs(a)*3);
+        da = fmaxf(r.x,r.y);
+        db = fmaxf(r.y,r.z);
+        dc = fmaxf(r.z,r.x);
+        c = (fminf(dc, fminf(da, db)) - 1)/s;
+        d = fmaxf(d, c);
+    }
+    return d;
+}
+
+Material Fractal::get_material(const vec3f &point) const {
+    return material;
+}
+
+Fractal::Fractal(const vec3f &_pos, const Material &mat) : pos(_pos), material(mat){
 
 }
