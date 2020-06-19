@@ -163,8 +163,6 @@ std::vector<Mesh> load_obj(const char *filename) {
     std::getline(in, line);
     Mesh mesh;
     while (!in.eof()) {
-        //std::getline(in, line);
-        //auto token = firstToken(line);
         if (line[0] == '#') {
             std::getline(in, line);
             continue;
@@ -180,10 +178,8 @@ std::vector<Mesh> load_obj(const char *filename) {
                 iss >> v[i];
                 v[i] *= 30;
             }
-            //std::swap(v.y, v.z);// = v.z, v.y;
             v.z -= 15;
             v.y -= 5;
-            //v.y -= 10;
             verts.emplace_back(v);
         } else if (token == "vn") {
             //iss >> trash_s;
@@ -268,20 +264,6 @@ std::map<std::string, Material> load_materials(const char* path, const std::stri
             listening = true;
             tmp_material = Material();
         }
-//        else if (token == "Ka")
-//        {
-//
-//            std::vector<std::string> temp;
-//            algorithm::split(algorithm::tail(curline), temp, " ");
-//
-//            if (temp.size() != 3)
-//                continue;
-//
-//            tempMaterial.Ka.X = std::stof(temp[0]);
-//            tempMaterial.Ka.Y = std::stof(temp[1]);
-//            tempMaterial.Ka.Z = std::stof(temp[2]);
-//        }
-        // Diffuse Color
         else if (token == "Kd")
         {
             iss >> tmp_material.color.x;
@@ -307,46 +289,6 @@ std::map<std::string, Material> load_materials(const char* path, const std::stri
             iss >> tmp_material.refractive_index;
             //tempMaterial.Ni = std::stof(algorithm::tail(curline));
         }
-        // Dissolve
-//        if (algorithm::firstToken(curline) == "d")
-//        {
-//            tempMaterial.d = std::stof(algorithm::tail(curline));
-//        }
-//        // Illumination
-//        if (algorithm::firstToken(curline) == "illum")
-//        {
-//            tempMaterial.illum = std::stoi(algorithm::tail(curline));
-//        }
-//        // Ambient Texture Map
-//        if (algorithm::firstToken(curline) == "map_Ka")
-//        {
-//            tempMaterial.map_Ka = algorithm::tail(curline);
-//        }
-        // Diffuse Texture Map
-//        if (algorithm::firstToken(curline) == "map_Kd")
-//        {
-//            tempMaterial.map_Kd = algorithm::tail(curline);
-//        }
-//        // Specular Texture Map
-//        if (algorithm::firstToken(curline) == "map_Ks")
-//        {
-//            tempMaterial.map_Ks = algorithm::tail(curline);
-//        }
-//        // Specular Hightlight Map
-//        if (algorithm::firstToken(curline) == "map_Ns")
-//        {
-//            tempMaterial.map_Ns = algorithm::tail(curline);
-//        }
-//        // Alpha Texture Map
-//        if (algorithm::firstToken(curline) == "map_d")
-//        {
-//            tempMaterial.map_d = algorithm::tail(curline);
-//        }
-//        // Bump Map
-//        if (algorithm::firstToken(curline) == "map_Bump" || algorithm::firstToken(curline) == "map_bump" || algorithm::firstToken(curline) == "bump")
-//        {
-//            tempMaterial.map_bump = algorithm::tail(curline);
-//        }
     }
     if (listening) {
         materials[cur_name] = tmp_material;
@@ -392,7 +334,6 @@ void Model::get_bbox(vec3f &min, vec3f &max) {
             max[j] = std::max(max[j], verts[i][j]);
         }
     }
-//    std::cerr << "bbox: [" << min << " : " << max << "]" << std::endl;
 }
 
 const vec3f &Model::point(int i) const {
@@ -415,8 +356,6 @@ int Model::vert(int fi, int li) const {
 
 Hit Model::ray_intersect(const Ray &ray) const {
     float best_dist = std::numeric_limits<float>::max();
-    //float cur_dist = std::numeric_limits<float>::max();
-    //int best_t = 0;
     Hit cur_hit, best_hit;
     for (auto &mesh:meshes) {
         cur_hit = mesh.ray_intersect(ray);
@@ -475,7 +414,6 @@ Hit Mesh::ray_intersect(const Ray &ray) const {
             best_dist = tnear;
         }
 
-        //return tnear>1e-5;
 
     }
     if (best_face.x < 0){

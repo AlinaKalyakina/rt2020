@@ -12,6 +12,7 @@ struct vec3
     vec3<T>() : x(0), y(0), z(0) {}
     vec3<T>(T a, T b, T c) : x(a), y(b), z(c) {}
     vec3<T>(const vec3<T>& t) = default;
+    explicit vec3<T>(T t):x(t), y(t), z(t) {}
 
     inline float norm() const { return std::sqrt(x*x+y*y+z*z); }
 
@@ -42,6 +43,10 @@ struct vec3
 
     inline vec3<T> operator+(const vec3<T>& t) const {
         return {x + t.x, y+t.y, z+t.z};
+    }
+
+    inline vec3<T> operator/(const vec3<T>& t) const {
+        return {x / t.x, y/t.y, z/t.z};
     }
 
     vec3<T>& operator+=(const vec3<T>& t) {
@@ -178,4 +183,12 @@ inline vec3<T> operator-(float a, const vec3<T>& t) {
     return {a-t.x, a-t.y, a-t.z};
 }
 
+template <typename T>
+inline vec3<T> operator/(float a, const vec3<T>& t) {
+    return {a/t.x, a/t.y, a/t.z};
+}
+
+inline vec3f pow(const vec3f &a, float t) {
+    return {powf(a.x, t), powf(a.y, t), powf(a.z, t)};
+}
 #endif //RT_MY_MATH_H

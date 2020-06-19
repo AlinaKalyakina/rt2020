@@ -19,9 +19,10 @@
 #define IMG_WIDTH 1024
 #define IMG_HEIGHT 768
 #define MAX_ITER 300
+#define GAMMA 2.2
 
 
-const float ambient_light = 0.55;
+const float ambient_light = 0.5;
 
 typedef Hit(*ray_func)(const Ray &ray, const std::vector<Primitive *> &primitives);
 
@@ -152,13 +153,13 @@ vec3f pixel_color(const Ray& ray, const std::vector<Primitive*> &primitives,
         if (tmp && (tmp.point - shadow_orig).norm() < (light.position - point).norm())
             continue;
 
-        diffuse_light_intensity += light.intensity * std::max(ambient_light, dot(light_dir, N));
+        diffuse_light_intensity += light.intensity * std::max(0.f, dot(light_dir, N));
 
         specular_light_intensity +=
                 powf(std::max(0.f, -dot(reflect(-light_dir, hit).dir, ray.dir)), material.specular_exponent) * light.intensity;
     }
 
-    auto res = material.color * diffuse_light_intensity * material.diff_spec_refl_refr.x +
+    auto res = material.color * (diffuse_light_intensity + ambient_light) * material.diff_spec_refl_refr.x +
                vec3f(1., 1., 1.) * specular_light_intensity * material.diff_spec_refl_refr.y;
     if (material.diff_spec_refl_refr.z > EPS) {
         res += pixel_color<F>(reflect(ray.dir, hit), primitives, lights, background, depth + 1) * material.diff_spec_refl_refr.z;
@@ -186,7 +187,7 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
             float dir_y = -(j + 0.5f) + (IMG_HEIGHT + 1) / 2.;
             float dir_z = -(IMG_HEIGHT + 1) / (2. * tan(M_PI / 3 / 2.));
             vec3f color = pixel_color<F>(Ray(vec3f(0, 0, 0), vec3f(dir_x, dir_y, dir_z).normalize()), primitives, lights,
-                                         background) * 255;
+                                         background);
             //vec3f int_color = color*255;
             raw_image[i + (IMG_HEIGHT - j) * (IMG_WIDTH + 1)] = color;
             //(((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
@@ -203,7 +204,11 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
                           raw_image[i + 1 + j*(IMG_WIDTH + 1)] +
                           raw_image[i + (j + 1)*(IMG_WIDTH + 1)] +
                           raw_image[i + 1 + (j + 1)*(IMG_WIDTH + 1)]) * (1.0/4);
-            color.crop(0, 255);
+
+            color = color/(color + vec3f(1));
+            color = pow(color, 1/GAMMA);
+            color = color * 255;
+            //color.crop(0, 255);
             res_image[i + (j*IMG_WIDTH)] = (((uint32_t) color.z) << 16) | ((uint32_t) color.y << 8) | (uint32_t) color.x;
         }
     }
@@ -212,7 +217,7 @@ render(const std::vector<Primitive*> primitives, const std::vector<Light> &light
 }
 
 
-std::vector<vec3f> load_tex(char const *filename, int *width, int *height) {
+std::vector<vec3f> load_tex(char const *filename, int *width, int *height, bool convertion = false) {
     int n = -1;
     unsigned char *img = stbi_load(filename, width, height, &n, 0);
     if (!img) {
@@ -225,6 +230,10 @@ std::vector<vec3f> load_tex(char const *filename, int *width, int *height) {
         for (int i = 0; i < tex_width; i++) {
             tex[i + j * tex_width] = vec3f(img[(i + j * tex_width) * 3 + 0], img[(i + j * tex_width) * 3 + 1],
                                            img[(i + j * tex_width) * 3 + 2]) * (1 / 255.);
+//            if (convertion) {
+//                tex[i + j * tex_width] = 1.0f/(1- tex[i + j * tex_width]);
+//            }
+            tex[i + j * tex_width] = pow(tex[i + j * tex_width], GAMMA);
         }
     }
     stbi_image_free(img);
@@ -265,15 +274,16 @@ int main(int argc, const char **argv) {
 
     //materials
     Material glass(vec4(0.0, 0.5, 0.25, 0.75), vec3f(0.9, 0.4, 0.5), 125., 1.5);
-    Material blue_rubber(vec4(0.9, 0.1, 0.0, 0.0), vec3f(0.1, 0.1, 0.3), 10., 1.0);
+    Material blue_rubber(vec4(0.9, 0.1, 0.0, 0.0), vec3f(0, 0, 0.9), 10., 1.0);
     Material grass_material(vec4(0.9, 0.1, 0.0, 0.0), vec3f(0.1, 0.3, 0.1), 10., 1.0);
     Material mirror(vec4(0.0, 10.0, 0.8, 0.0), vec3f(1.0, 1.0, 1.0), 1425., 1.0);
     std::vector<Primitive *> primitives;
     std::vector<Light> lights;
     int grass_width, grass_height, sky_width, sky_height;
     auto grass_tex = load_tex("../tex/grass.jpg", &grass_width, &grass_height);
-    auto sky_tex = load_tex("../tex/sky10.jpg", &sky_width, &sky_height);
+    auto sky_tex = load_tex("../tex/sky10.jpg", &sky_width, &sky_height, true);
     Background background(MAX_DIST, sky_tex, sky_width, sky_height);
+    std::vector<uint32_t> image;
     switch (sceneId) {
         case 1:
 //    //primitives
@@ -290,17 +300,21 @@ int main(int argc, const char **argv) {
 
 
             //lights
-            lights.emplace_back(vec3f(20, 10, 5), 2);
-            lights.emplace_back(vec3f(-10, 10, 10), 2);
+            lights.emplace_back(vec3f(10, 10, 10), 7);
+            lights.emplace_back(vec3f(-10, 10, 10), 7);
 
-            //background
-            std::cout << "prepared_for picture making" << std::endl;
+            image = render<march_intersect>(primitives, lights, background);
+
             break;
         case 2:
-            primitives.push_back(new Fractal(vec3f(3, -2, -12), blue_rubber));
+            primitives.push_back(new Fractal(vec3f(2, -2, -14), blue_rubber));
             primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
-            lights.emplace_back(vec3f(-10, 10, 10), 4);
+            //lights.emplace_back(vec3f(-10, 10, -20), 2);
+            lights.emplace_back(vec3f(5, 0, 10), 7);
+            lights.emplace_back(vec3f(-10, 10, 10), 7);
+            image = render<march_intersect>(primitives, lights, background);
+
             break;
         case 3:
             //primitives.emplace_back(new Model("../cup/cup.obj"));
@@ -308,19 +322,20 @@ int main(int argc, const char **argv) {
 
             primitives.emplace_back(new HorPlane(-5, grass_material, grass_tex, grass_width, grass_height));
 
-            lights.emplace_back(vec3f(-10, 10, 10), 4);
+            lights.emplace_back(vec3f(12, 20, 10), 7);
+            image = render<trace_intersect>(primitives, lights, background);
+
             break;
         default:
             return 0;
 
     }
 
-    auto image = render<trace_intersect>(primitives, lights, background);
 
     for (auto p: primitives) {
         delete p;
     }
-    std::cout << "picture_made" << std::endl;
+    //std::cout << "picture_made" << std::endl;
     SaveBMP(outFilePath.c_str(), image.data(), IMG_WIDTH, IMG_HEIGHT);
     std::cout << "end." << std::endl;
     return 0;

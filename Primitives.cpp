@@ -14,7 +14,7 @@ Material::Material(const vec4 &a, const vec3f &color, float spec, float r) : ref
                                                                             color(color),
                                                                             specular_exponent(spec) {}
 
-Material::Material() : refractive_index(1), diff_spec_refl_refr(0.2, 0.8, 0, 0), color(0.5, 0, 0), specular_exponent(10) {}
+Material::Material() : refractive_index(1), diff_spec_refl_refr(0.2, 0.8, 0, 0), color(0.1, 0, 0), specular_exponent(10) {}
 
 
 Hit::Hit() = default;
@@ -115,53 +115,10 @@ vec3f Background::get_color(const Ray &ray) const {
     if (j < 0) {
         j = 0;
     }
-    //std::cout << j << std::endl;
-    //std::cout << texture.size() << " " << i << " " << j << " " << i+j*tex_w << std::endl;
 
     return texture[i+j*tex_w];
 }
 
-Triangle::Triangle(const vec3f &a, const vec3f &b, const vec3f &c, const Material& m): v0(a), v1(b), v2(c),
-    material(m), n(cross(v1-v0, v2-v0).normalize()) {
-
-}
-
-Hit Triangle::ray_intersect(const Ray &ray) const {
-    vec3f edge1 = v1-v0;
-    vec3f edge2 = v2-v0;
-    vec3f pvec = cross(ray.dir, edge2);
-    float det = dot(edge1,pvec);
-    if (det<EPS/100) return {};
-
-    vec3f tvec = ray.orig - v0;
-    float u = dot(tvec,pvec);
-    if (u < 0 || u > det) return {};
-
-    vec3f qvec = cross(tvec, edge1);
-    float v = dot(ray.dir,qvec);
-    if (v < 0 || u + v > det) return {};
-
-    float tnear = dot(edge2,qvec) * (1.f/det);
-    if (tnear <- EPS/100) return {};
-
-    Hit hit;
-    hit.hit = true;
-    hit.point = ray.orig + ray.dir*tnear;
-    hit.material = material;
-    hit.dist = tnear;
-    hit.n = dot(n,ray.dir) < 0?n:-n;
-    return hit;
-}
-
-float Triangle::dist(const vec3f &point) const {
-    return 0;
-//    TODO
-}
-
-Material Triangle::get_material(const vec3f &point) const {
-    //TODO
-    return {};
-}
 
 float sdBox( vec3f p, vec3f b ) {
     vec3f d = abs(p) - b;
@@ -234,6 +191,4 @@ Material Fractal::get_material(const vec3f &point) const {
     return material;
 }
 
-Fractal::Fractal(const vec3f &_pos, const Material &mat) : pos(_pos), material(mat){
-
-}
+Fractal::Fractal(const vec3f &_pos, const Material &mat) : pos(_pos), material(mat){}
